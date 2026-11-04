@@ -88,17 +88,14 @@
   - [x] Dynamic Apache ECharts renderer (`ChartRenderer.tsx`) for bars, lines, pies, and outlier scatter plots with editorial styling and PNG download export
   - [x] Clarify lane with tappable option chips, multivariate anomaly cards, and suggested follow-up chips
   - [x] Acceptance Gate: Playwright e2e green across the six assignment questions (streaming answers, charts, Evidence drawer, timeline nodes), follow-up conversational context verified, abort handling verified, zero console errors, `make check` passing green, tagged `phase-8-complete`
-- [ ] **Phase 9: Dashboards, reports UI, settings, polish**
-- [x] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
-  - [x] Three-pane workspace layout: collapsible left dataset rail with table counts and prompt pills, center streaming chat with composer, and collapsible right Reasoning panel
-  - [x] Real-time SSE chat streaming (`ChatStreamService.ts`) with lifecycle events (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`) and clean `AbortController` cancellation
-  - [x] Animated Reasoning Timeline (`ReasoningTimeline.tsx`) visualizing the execution DAG, step runtimes, repair self-correction loop, and Skeptic Verifier checklist with High/Medium/Low confidence tooltips
-  - [x] Evidence Drawer (`EvidenceDrawer.tsx`) springing in from the right with syntax-highlighted DuckDB SQL, Pandas equivalent, interactive result rows table, and ledger audit steps
-  - [x] Dynamic Apache ECharts renderer (`ChartRenderer.tsx`) for bars, lines, pies, and outlier scatter plots with editorial styling and PNG download export
-  - [x] Clarify lane with tappable option chips, multivariate anomaly cards, and suggested follow-up chips
-  - [x] Acceptance Gate: Playwright e2e green across the six assignment questions (streaming answers, charts, Evidence drawer, timeline nodes), follow-up conversational context verified, abort handling verified, zero console errors, `make check` passing green, tagged `phase-8-complete`
-- [ ] **Phase 9: Dashboards, reports UI, settings, polish**
-- [ ] **Phase 9: Dashboards, reports UI, settings, polish**
+- [x] **Phase 9: Dashboards, reports UI, settings, polish**
+  - [x] Dashboards Page (`DashboardsPage.tsx`) with animated build-up of 5 widgets, interactive drag/up-down reordering, fullscreen modal per widget, `NumberCountUp` KPI cards, revenue trend line chart, regional share pie chart, and statistical anomaly alert cards
+  - [x] Reports Page (`ReportsPage.tsx`) with export session/dashboard dialog for PDF & Markdown formats, report history list, downloadable artifacts, and in-app markdown dossier preview modal
+  - [x] Settings Page (`SettingsPage.tsx`) with real-time LLM provider health status lights (from `/providers/status`), security guardrails verification (SELECT-only SQL, Pandas sandbox, prompt injection defense), business metric definition editor with live SQL validation, and tenant data wipeout modal (`POST /api/v1/auth/clear-data`)
+  - [x] Command Palette (`CommandPalette.tsx`) with `Cmd/Ctrl+K` keyboard shortcut, fuzzy navigation to all platform screens, curated analytical prompts, and ESC dismissal
+  - [x] Custom 404 page (`NotFoundPage.tsx`) with editorial brand styling and one-click return to workspace
+  - [x] Performance & Code Splitting: Route-level dynamic `React.lazy` and `Suspense`, manual vendor/chart/framer chunks in `vite.config.ts`, main bundle chunk well within 250KB gzip budget
+  - [x] Acceptance Gate: Playwright E2E suite (`dashboards_reports_settings.spec.ts`) passing 6/6 tests across dashboards generation, reordering, report export/download, settings metric creation, command palette toggle, 404 navigation, and responsive viewport checks (375, 768, 1024, 1440) with zero horizontal overflow; ESLint 0 warnings; TypeScript check 0 errors; Vitest 12/12 passing; Pytest 162/162 passing with 82.21% coverage; tagged `phase-9-complete`
 - [ ] **Phase 10: Integration, Docker, docs, media**
 
 ---

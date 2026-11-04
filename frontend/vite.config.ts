@@ -30,6 +30,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          charts: ["echarts", "echarts-for-react"],
+          framer: ["framer-motion"],
+          query: ["@tanstack/react-query"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1200,
+  },
   test: {
     globals: true,
     environment: "jsdom",

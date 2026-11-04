@@ -1,5 +1,7 @@
 """Authentication API router: register, login, refresh, me endpoints."""
 
+import contextlib
+import os
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, status
@@ -14,7 +16,8 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.models import User
+from app.data.ingestion import DataIngestionPipeline
+from app.db.models import ChatSession, Dataset, MetricDefinition, User
 from app.db.session import get_db
 from app.deps import get_current_user
 
@@ -141,3 +144,24 @@ async def get_current_user_profile(user: User = Depends(get_current_user)) -> Us
         is_active=user.is_active,
         created_at=user.created_at,
     )
+
+
+@router.post("/clear-data", status_code=status.HTTP_200_OK)
+async def clear_user_data(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Wipe all datasets, metrics, and chat sessions for the current user and reset their DuckDB."""
+    db.query(Dataset).filter(Dataset.user_id == user.id).delete()
+    db.query(ChatSession).filter(ChatSession.user_id == user.id).delete()
+    db.query(MetricDefinition).filter(MetricDefinition.user_id == user.id).delete()
+    db.commit()
+
+    pipeline = DataIngestionPipeline()
+    db_path = pipeline.get_user_db_path(user.id)
+    if os.path.exists(db_path):
+        with contextlib.suppress(Exception):
+            os.remove(db_path)
+
+    return {"message": "All user data, datasets, and chat sessions have been permanently cleared."}
+

@@ -16,14 +16,14 @@ describe("App Component", () => {
     expect(["capsule", "bottom-rounded"]).toContain(NAV_VARIANT);
   });
 
-  it("renders the hero headline and ground truth value proposition", () => {
+  it("renders the hero headline and ground truth value proposition", async () => {
     render(<App />);
-    expect(screen.getByText(/Instant clarity from/i)).toBeInTheDocument();
-    expect(screen.getByText(/raw tabular data/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Instant clarity from/i)).toBeInTheDocument();
+    expect(await screen.findByText(/raw tabular data/i)).toBeInTheDocument();
   });
 
-  it("renders the mini demo preview with verifier indicator", () => {
+  it("renders the mini demo preview with verifier indicator", async () => {
     render(<App />);
-    expect(screen.getByText(/lumen:\/\/session-emea-analysis/i)).toBeInTheDocument();
+    expect(await screen.findByText(/lumen:\/\/session-emea-analysis/i)).toBeInTheDocument();
   });
 });
