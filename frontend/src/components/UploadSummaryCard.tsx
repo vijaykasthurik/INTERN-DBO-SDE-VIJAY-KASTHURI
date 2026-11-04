@@ -94,7 +94,7 @@ export const UploadSummaryCard: React.FC<UploadSummaryCardProps> = ({ datasets, 
             >
               <div className="flex items-center gap-2 truncate">
                 <Table className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span className="font-mono font-medium text-ink truncate">{d.table_name}</span>
+                <span className="font-mono font-medium text-ink truncate">{d.table_name || d.name}</span>
               </div>
               <span className="text-[11px] text-ink-muted tabular-nums shrink-0 ml-2">
                 {d.row_count.toLocaleString()} rows

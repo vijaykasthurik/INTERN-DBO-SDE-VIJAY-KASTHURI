@@ -44,7 +44,7 @@ interface MessageItem {
 }
 
 export const WorkspacePage: React.FC = () => {
-  const { fetchDatasets } = useDatasetStore();
+  const { datasets, fetchDatasets } = useDatasetStore();
   const { connection, openConnectModal } = useAIConnectionStore();
   const [providerSwitchAlert, setProviderSwitchAlert] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
