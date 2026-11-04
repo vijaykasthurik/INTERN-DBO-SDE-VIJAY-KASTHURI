@@ -1,0 +1,51 @@
+product_id,product_name,category,unit_price
+PROD-001,Enterprise Software 1,Software,776.33
+PROD-002,Enterprise Cloud Services 2,Cloud Services,54.39
+PROD-003,Enterprise Peripherals 3,Peripherals,348.16
+PROD-004,Enterprise Hardware 4,Hardware,287.27
+PROD-005,Enterprise Software 5,Software,890.35
+PROD-006,Enterprise Cloud Services 6,Cloud Services,820.12
+PROD-007,Enterprise Peripherals 7,Peripherals,1073.31
+PROD-008,Enterprise Hardware 8,Hardware,127.15
+PROD-009,Enterprise Software 9,Software,520.76
+PROD-010,Enterprise Cloud Services 10,Cloud Services,60.01
+PROD-011,Enterprise Peripherals 11,Peripherals,281.9
+PROD-012,Enterprise Hardware 12,Hardware,618.79
+PROD-013,Enterprise Software 13,Software,56.18
+PROD-014,Enterprise Cloud Services 14,Cloud Services,258.63
+PROD-015,Enterprise Peripherals 15,Peripherals,788.61
+PROD-016,Enterprise Hardware 16,Hardware,665.31
+PROD-017,Enterprise Software 17,Software,284.02
+PROD-018,Enterprise Cloud Services 18,Cloud Services,717.39
+PROD-019,Enterprise Peripherals 19,Peripherals,976.08
+PROD-020,Enterprise Hardware 20,Hardware,32.64
+PROD-021,Enterprise Software 21,Software,971.84
+PROD-022,Enterprise Cloud Services 22,Cloud Services,845.31
+PROD-023,Enterprise Peripherals 23,Peripherals,424.79
+PROD-024,Enterprise Hardware 24,Hardware,207.69
+PROD-025,Enterprise Software 25,Software,1149.73
+PROD-026,Enterprise Cloud Services 26,Cloud Services,420.5
+PROD-027,Enterprise Peripherals 27,Peripherals,133.98
+PROD-028,Enterprise Hardware 28,Hardware,138.64
+PROD-029,Enterprise Software 29,Software,1020.81
+PROD-030,Enterprise Cloud Services 30,Cloud Services,734.38
+PROD-031,Enterprise Peripherals 31,Peripherals,973.38
+PROD-032,Enterprise Hardware 32,Hardware,882.43
+PROD-033,Enterprise Software 33,Software,655.07
+PROD-034,Enterprise Cloud Services 34,Cloud Services,1168.41
+PROD-035,Enterprise Peripherals 35,Peripherals,469.78
+PROD-036,Enterprise Hardware 36,Hardware,673.65
+PROD-037,Enterprise Software 37,Software,999.55
+PROD-038,Enterprise Cloud Services 38,Cloud Services,751.76
+PROD-039,Enterprise Peripherals 39,Peripherals,1037.51
+PROD-040,Enterprise Hardware 40,Hardware,703.39
+PROD-041,Enterprise Software 41,Software,852.87
+PROD-042,Enterprise Cloud Services 42,Cloud Services,78.84
+PROD-043,Enterprise Peripherals 43,Peripherals,292.78
+PROD-044,Enterprise Hardware 44,Hardware,365.03
+PROD-045,Enterprise Software 45,Software,118.76
+PROD-046,Enterprise Cloud Services 46,Cloud Services,298.53
+PROD-047,Enterprise Peripherals 47,Peripherals,143.68
+PROD-048,Enterprise Hardware 48,Hardware,351.62
+PROD-049,Enterprise Software 49,Software,771.93
+PROD-050,Enterprise Cloud Services 50,Cloud Services,453.68
