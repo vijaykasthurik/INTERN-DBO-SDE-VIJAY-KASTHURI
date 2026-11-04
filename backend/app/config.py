@@ -6,8 +6,9 @@ database URLs, and LLM provider selections with full type safety.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -88,7 +89,7 @@ class Settings(BaseSettings):
     groq_api_key_5: str = Field(default="", alias="GROQ_API_KEY_5")
     groq_api_key_6: str = Field(default="", alias="GROQ_API_KEY_6")
     groq_api_key_7: str = Field(default="", alias="GROQ_API_KEY_7")
-    groq_model_fast: str = Field(default="openai/gpt-oss-20b", alias="GROQ_MODEL_FAST")
+    groq_model_fast: str = Field(default="llama-3.1-8b-instant", alias="GROQ_MODEL_FAST")
     groq_model_strong: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL_STRONG")
 
     # Z.AI Shared
@@ -124,6 +125,18 @@ class Settings(BaseSettings):
         default="gpt-4o",
         alias="OPENAI_COMPAT_MODEL_STRONG",
     )
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> Self:
+        """Enforce strict production security policies."""
+        if self.app_env.lower() == "production":
+            if self.llm_provider.lower() == "mock":
+                raise ValueError("Production mode (APP_ENV=production) must never use the mock LLM provider.")
+            if "insecure" in self.secret_key.lower():
+                raise ValueError("SECRET_KEY must be a secure secret in production.")
+            if not self.key_encryption_secret or len(self.key_encryption_secret) < 32:
+                raise ValueError("KEY_ENCRYPTION_SECRET must be at least 32 characters in production.")
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:

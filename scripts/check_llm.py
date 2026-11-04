@@ -38,7 +38,7 @@ async def probe_groq_key(key: str, index: int, strong_model: str, fast_model: st
             tier="strong",
         )
         dt = (time.perf_counter() - t0) * 1000.0
-        print(f"[ONLINE] Groq Key #{index:2d} (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Strong Model: {res.model} | Reply: {res.content.strip()[:20]}")
+        print(f"[ONLINE] Groq Key #{index:2d} (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Strong: {res.model} | Fast: {prov.fast_model} | Reply: {res.content.strip()[:20]}")
         return True
     except Exception as exc:
         dt = (time.perf_counter() - t0) * 1000.0

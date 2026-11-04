@@ -37,7 +37,7 @@ class GroqProvider(LLMProvider):
         settings = get_settings()
         self.api_key = api_key or settings.groq_api_key
         # Use explicitly configured fast model if provided, else compact model
-        self.fast_model = model_fast or settings.groq_model_fast or "openai/gpt-oss-20b"
+        self.fast_model = model_fast or settings.groq_model_fast or "llama-3.1-8b-instant"
         # Shared chain uses model from .env (GROQ_MODEL) as strong tier
         self.strong_model = model_strong or settings.groq_model or settings.groq_model_strong or "llama-3.3-70b-versatile"
         self.client = httpx.AsyncClient(timeout=30.0)
@@ -114,7 +114,11 @@ class GroqProvider(LLMProvider):
                 err_text = resp.text
                 if "model_not_found" in err_text or "does not exist" in err_text:
                     # Adaptive fallback for decommissioned/restricted models
-                    fallback_candidates = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", self.fast_model]
+                    fallback_candidates = (
+                        ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", self.fast_model]
+                        if tier == "strong"
+                        else [self.fast_model, "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "openai/gpt-oss-120b"]
+                    )
                     for cand in fallback_candidates:
                         if cand != model:
                             retry_payload = {**payload, "model": cand}
@@ -207,6 +211,29 @@ class GroqProvider(LLMProvider):
                                     yield delta["content"]
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
+            if status == 404:
+                fallback_candidates = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+                for cand in fallback_candidates:
+                    if cand != payload.get("model"):
+                        retry_payload = {**payload, "model": cand}
+                        try:
+                            async with self.client.stream(
+                                "POST", self.BASE_URL, json=retry_payload, headers=headers
+                            ) as retry_resp:
+                                if retry_resp.status_code == 200:
+                                    async for line in retry_resp.aiter_lines():
+                                        if line.startswith("data: "):
+                                            raw = line[6:].strip()
+                                            if raw and raw != "[DONE]":
+                                                chunk = json.loads(raw)
+                                                choices = chunk.get("choices", [])
+                                                if choices:
+                                                    delta = choices[0].get("delta", {})
+                                                    if "content" in delta and delta["content"]:
+                                                        yield delta["content"]
+                                    return
+                        except Exception:
+                            continue
             if status == 429:
                 raise LLMRateLimitError(
                     f"Groq streaming rate limit: {e}", provider="groq", status_code=status
