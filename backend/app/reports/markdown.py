@@ -63,13 +63,14 @@ class MarkdownReportExporter:
         if queries:
             for q in queries:
                 q_text = q.get("query", "").strip()
-                runtime = q.get("runtime_ms", 0.0)
-                rows = q.get("row_count", 0)
+                runtime = q.get("runtime_ms")
+                latency = f"{runtime:.1f}ms" if runtime is not None else "not individually measured"
+                rows = q.get("row_count")
                 md_lines.extend([
                     "```sql",
                     q_text,
                     "```",
-                    f"*Execution time: `{runtime:.1f}ms` | Rows returned: `{rows}`*",
+                    f"*Execution time: `{latency}` | Rows returned: `{rows if rows is not None else 'not recorded'}`*",
                     "",
                 ])
         else:

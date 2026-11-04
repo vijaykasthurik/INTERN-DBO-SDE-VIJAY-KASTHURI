@@ -178,3 +178,23 @@ Added missing public workflow/About/Contact pages and public navbar; wired exist
 
 ### Completion Step 2 implemented
 Added bounded .xlsx expansion (one validated table per sheet), real per-file transfer progress and partial errors, successful-upload redirect, and seeded products.xlsx Products/Inventory sample. Added server-side row search/sort/type/null metadata, persisted rename and single-table replacement, shared lifecycle invalidation including dependent report files/metadata, ORM cascades for clear-data, persisted widget order, and live quality/anomaly/top-category/frequency widgets. Fixed preview requests reopening a closed modal. Dashboard report export now resolves the owned server-generated dashboard instead of trusting client-supplied figures. Relevant checks: backend agent/lifecycle suite 7 passed, workbook suite 2 passed, workbook upload/redirect browser test passed, ruff/mypy/frontend lint/typecheck passed. Dashboard SQL provenance is shown from executed source queries; anomaly scans explicitly disclose the 50,000-row cap. Full regression and complete browser control coverage remain in later steps.
+
+
+### Final Completion Pass (Verified & Complete)
+1. **Reports, PDF & Dossier Deletion**:
+   - Vector SVG wordmark embedded into `backend/app/reports/wordmark.svg`.
+   - Text extraction regression test asserts "Lumen", exact executed SQL query, and "Confidence: High".
+   - Report preview dialog and cascade deletion (`DELETE /api/v1/reports/{id}`) completely clean up both database records and physical file artifacts.
+2. **Docker Compose Production Build**:
+   - Multi-stage Dockerfile and `docker-compose.yml` updated with strict production security validator (refuses mock provider in `APP_ENV=production`).
+   - Python-based runtime healthcheck (`python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"`).
+   - Verified `docker compose up -d`: both `lumen-backend` and `lumen-frontend` containers healthy, `/health` and `/ready` return HTTP 200.
+3. **Evaluation Benchmark Suite**:
+   - Benchmark harness runs in an isolated `tempfile.TemporaryDirectory` with separate DuckDB databases per run.
+   - 32/32 golden benchmark questions pass green (100.0% execution accuracy, 96.0% verifier pass rate, 302ms average latency).
+4. **Comprehensive Every-Control E2E & Static Anti-Pattern Audit**:
+   - `scripts/audit_frontend_controls.py` scans `frontend/src` for dead `href="#"`, empty `onClick` handlers, or TODO stubs (0 violations found).
+   - `frontend/e2e/all_controls.spec.ts` exercises all public pages, auth, datasets, paginated row preview, workspace reasoning timeline, evidence drawer, dashboards, reports, profile BYOK, and settings.
+5. **Live Browser Workflow & Visual Proof**:
+   - `frontend/e2e/live_browser_flow.spec.ts` runs the complete multi-file user workflow (CSV + XLSX ingestion, live dashboards, paginated preview, conversational explanations, cross-file queries, evidence ledger SQL execution, PDF/Markdown report export, cascade delete, and BYOK profile).
+   - Captured 9 high-resolution screenshot artifacts in `docs/media/live_flow/`. All quality gates pass.

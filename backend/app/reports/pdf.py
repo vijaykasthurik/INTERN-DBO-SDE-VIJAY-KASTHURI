@@ -2,6 +2,8 @@
 
 import os
 import tempfile
+import threading
+from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -14,6 +16,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    Flowable,
     HRFlowable,
     Image,
     Paragraph,
@@ -24,10 +27,52 @@ from reportlab.platypus import (
 )
 
 
+class Wordmark(Flowable):
+    """Use the same vector letterforms as the application, with searchable text."""
+    def __init__(self) -> None:
+        super().__init__()
+        self.width,self.height = 112,28
+
+    def draw(self) -> None:
+        from reportlab.graphics import renderPDF
+        from svglib.svglib import svg2rlg
+        source = Path(__file__).resolve().parent / "wordmark.svg"
+        if not source.exists():
+            source = Path(__file__).resolve().parents[3] / "frontend" / "public" / "wordmark.svg"
+        if not source.exists():
+            source = Path("/app/assets/wordmark.svg")
+        drawing = None
+        if source.exists():
+            try:
+                drawing = svg2rlg(str(source))
+            except Exception:
+                drawing = None
+        svg_width = float(getattr(drawing, "width", 0.0)) if drawing is not None else 0.0
+        if drawing is not None and svg_width > 0:
+            scale = self.width / svg_width
+            drawing.scale(scale, scale)
+            renderPDF.draw(drawing, self.canv, 0, 0)
+        else:
+            self.canv.setFont("Helvetica-Bold", 16)
+            self.canv.setFillColor(colors.HexColor("#0B0B0F"))
+            self.canv.drawString(0, 8, "Lumen")
+        text = self.canv.beginText(0, 0)
+        text.setTextRenderMode(3)
+        text.setFont("Helvetica", 10)
+        text.textLine("Lumen")
+        self.canv.drawText(text)
+
+
 class PDFReportExporter:
     """Renders professional white/minimalist PDF reports matching the Lumen design system."""
 
+    _render_lock = threading.Lock()
+
     def render_pdf(self, report_data: dict[str, Any], output_path: str) -> str:
+        with self._render_lock:
+            return self._render_pdf(report_data,output_path)
+
+    def _render_pdf(self, report_data: dict[str, Any], output_path: str) -> str:
         """Compile PDF document to file with embedded Matplotlib analytical visualizations."""
         doc = SimpleDocTemplate(
             output_path,
@@ -90,7 +135,7 @@ class PDFReportExporter:
             spaceAfter=6,
         )
 
-        story = []
+        story = [Wordmark(),Spacer(1,12)]
 
         # 1. Header & Title
         title_text = escape(str(report_data.get("title", "Lumen Executive Report")))
@@ -152,13 +197,14 @@ class PDFReportExporter:
         story.append(Spacer(1, 8))
 
         # 6. SQL Evidence Ledger
-        story.append(Paragraph("Evidence Ledger: Validated SQL Queries", heading_style))
+        story.append(Paragraph("Evidence Ledger: Executed Queries", heading_style))
         for q in report_data.get("sql_queries", []):
             code_text = q.get("query", "").replace("\n", " ").strip()
-            runtime = q.get("runtime_ms", 0.0)
-            rows = q.get("row_count", 0)
+            runtime = q.get("runtime_ms")
+            rows = q.get("row_count")
             story.append(Paragraph(escape(code_text), code_style))
-            story.append(Paragraph(f"<i>Execution latency: {runtime:.1f}ms | Rows returned: {rows}</i>", subtitle_style))
+            latency = f"{runtime:.1f}ms" if runtime is not None else "not individually measured"
+            story.append(Paragraph(f"<i>Execution latency: {latency} | Rows returned: {rows if rows is not None else 'not recorded'}</i>", subtitle_style))
 
         # 7. Verifier Skeptic Notes
         story.append(Paragraph("Skeptic Verifier Audit Trail", heading_style))
@@ -172,11 +218,16 @@ class PDFReportExporter:
             )
         )
 
-        doc.build(story)
-
-        # Cleanup temporary chart image
-        for chart_file in chart_files:
-            if os.path.exists(chart_file):
-                os.remove(chart_file)
+        def footer(canvas: Any, document: Any) -> None:
+            canvas.saveState()
+            canvas.setFont("Helvetica",8)
+            canvas.setFillColor(colors.HexColor("#64748B"))
+            canvas.drawRightString(letter[0]-54,32,f"Lumen | Page {document.page}")
+            canvas.restoreState()
+        try:
+            doc.build(story,onFirstPage=footer,onLaterPages=footer)
+        finally:
+            for chart_file in chart_files:
+                Path(chart_file).unlink(missing_ok=True)
 
         return output_path

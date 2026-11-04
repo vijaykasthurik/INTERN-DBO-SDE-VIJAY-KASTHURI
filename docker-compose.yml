@@ -13,6 +13,9 @@ services:
       - LOG_LEVEL=INFO
       - DATABASE_URL=sqlite:////app/data/lumen.db
       - DATA_DIR=/app/data
+      - LLM_PROVIDER=${LLM_PROVIDER:-groq}
+      - SECRET_KEY=${SECRET_KEY}
+      - KEY_ENCRYPTION_SECRET=${KEY_ENCRYPTION_SECRET}
     volumes:
       - lumen-data:/app/data
     healthcheck:
@@ -29,7 +32,7 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: lumen-frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       backend:
         condition: service_healthy

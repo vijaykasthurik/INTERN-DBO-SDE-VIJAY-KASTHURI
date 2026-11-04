@@ -1,5 +1,6 @@
 """Report export endpoints (PDF and Markdown) with full Evidence Ledger integration."""
 
+import contextlib
 import os
 import uuid
 from typing import Any
@@ -172,3 +173,28 @@ async def download_report(
         media_type=media_type,
         filename=filename,
     )
+
+
+@router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_report(
+    report_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Delete a report artifact owned by the current user."""
+    artifact = (
+        db.query(ReportArtifact)
+        .filter(ReportArtifact.id == report_id, ReportArtifact.user_id == current_user.id)
+        .first()
+    )
+    if not artifact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Report '{report_id}' not found.",
+        )
+    file_path = os.path.join(REPORTS_DIR, os.path.basename(artifact.filename))
+    if os.path.exists(file_path):
+        with contextlib.suppress(OSError):
+            os.remove(file_path)
+    db.delete(artifact)
+    db.commit()

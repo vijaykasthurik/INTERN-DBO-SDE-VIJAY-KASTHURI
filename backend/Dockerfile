@@ -30,6 +30,7 @@ ENV PATH=/home/lumen/.local/bin:$PATH \
 # Copy application code
 COPY backend/app ./app
 COPY backend/pyproject.toml .
+COPY frontend/public/wordmark.svg /app/assets/wordmark.svg
 
 RUN mkdir -p /app/data && chown -R lumen:lumen /app
 

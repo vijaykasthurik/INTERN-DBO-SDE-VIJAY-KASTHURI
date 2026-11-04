@@ -8,6 +8,7 @@ import {
   Eye,
   CheckCircle2,
   FileCode,
+  Trash2,
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -123,6 +124,19 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
+  const handleDeleteReport = async (reportId: string) => {
+    setError(null);
+    try {
+      await api.reports.delete(reportId);
+      setReports((current) => current.filter((r) => r.id !== reportId));
+      if (previewReport?.id === reportId) {
+        setPreviewReport(null);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete report.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-ink pt-28 pb-16 px-4 sm:px-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -199,6 +213,15 @@ export const ReportsPage: React.FC = () => {
               >
                 <Download className="w-3.5 h-3.5 mr-1.5" />
                 {downloading === report.id ? "Downloading..." : `Download ${report.format.toUpperCase()}`}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleDeleteReport(report.id)}
+                className="text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                aria-label="Delete report"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>
           </Card>
