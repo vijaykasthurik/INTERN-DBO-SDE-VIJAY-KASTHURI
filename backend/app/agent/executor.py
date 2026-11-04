@@ -15,6 +15,7 @@ class StepExecutor:
 
     def __init__(self, tools_registry: dict[str, Any], per_step_timeout_sec: float = 15.0) -> None:
         self.tools = tools_registry
+        self.tools_registry = tools_registry
         self.per_step_timeout_sec = per_step_timeout_sec
         self.repairer = QueryRepairer()
 
@@ -131,6 +132,71 @@ class StepExecutor:
                         error_msg = None
                         break
 
+                    elif step.tool == "anomaly_tool":
+                        import pandas as pd
+                        df = pd.DataFrame()
+                        if "sql_tool" in self.tools_registry and hasattr(self.tools_registry["sql_tool"], "db_path"):
+                            db_p = self.tools_registry["sql_tool"].db_path
+                            try:
+                                import duckdb
+                                con = duckdb.connect(db_p, read_only=True)
+                                df = con.execute("SELECT * FROM sales;").df()
+                                con.close()
+                            except Exception:
+                                pass
+                        if df.empty:
+                            for prev_entry in ledger.entries:
+                                if isinstance(prev_entry.result_preview, list) and prev_entry.result_preview:
+                                    df = pd.DataFrame(prev_entry.result_preview)
+                                    break
+
+                        target_col = step.parameters.get("target_column") or ("unit_price" if "unit_price" in df.columns else ("revenue" if "revenue" in df.columns else "unit_price"))
+                        id_col = step.parameters.get("id_column") or ("order_id" if "order_id" in df.columns else "id")
+                        res = tool_instance.detect_anomalies(df, target_column=target_col, id_column=id_col)
+                        result_preview = res
+                        row_count = res.get("summary", {}).get("outliers_detected", len(res.get("outliers", [])))
+                        code = f"tool.detect_anomalies(df, target_column='{target_col}', id_column='{id_col}')"
+                        status = "success"
+                        error_msg = None
+                        break
+
+                    elif step.tool == "forecast_tool":
+                        rows = []
+                        if "sql_tool" in self.tools_registry and hasattr(self.tools_registry["sql_tool"], "db_path"):
+                            db_p = self.tools_registry["sql_tool"].db_path
+                            try:
+                                import duckdb
+                                con = duckdb.connect(db_p, read_only=True)
+                                rows = con.execute("SELECT SUBSTR(CAST(order_date AS DATE)::VARCHAR, 1, 7) AS month, SUM(quantity * unit_price * (1 - discount)) AS revenue FROM sales GROUP BY month ORDER BY month;").df().to_dict(orient="records")
+                                con.close()
+                            except Exception:
+                                pass
+                        if not rows:
+                            for prev_entry in ledger.entries:
+                                if isinstance(prev_entry.result_preview, list) and prev_entry.result_preview:
+                                    rows = prev_entry.result_preview
+                                    break
+
+                        horizon = step.parameters.get("horizon", 3)
+                        res = tool_instance.generate_forecast(history=rows, periods_ahead=horizon, value_key="revenue")
+                        result_preview = res
+                        row_count = len(res.get("predictions", []))
+                        code = f"tool.generate_forecast(history, periods_ahead={horizon})"
+                        status = "success"
+                        error_msg = None
+                        break
+
+                    elif step.tool == "hypothesis_tool":
+                        target_period = step.parameters.get("target_period", "2024-03")
+                        target_region = step.parameters.get("target_region", "EMEA")
+                        res = tool_instance.investigate_drop(target_period=target_period, target_region=target_region)
+                        result_preview = res
+                        row_count = len(res.get("ranked_hypotheses", res.get("candidates", [])))
+                        code = f"tool.investigate_drop(target_period='{target_period}', target_region='{target_region}')"
+                        status = "success"
+                        error_msg = None
+                        break
+
                     else:
                         # Fallback for other specialist tools
                         result_preview = {
@@ -139,6 +205,7 @@ class StepExecutor:
                         }
                         row_count = 1
                         status = "success"
+                        error_msg = None
                         break
 
             except Exception as e:
@@ -155,6 +222,10 @@ class StepExecutor:
                             },
                         )
                     # Adjust parameters for next repair attempt
+                    sql_curr = step.parameters.get("sql", "")
+                    if "list_agg" in sql_curr.lower():
+                        import re
+                        step.parameters["sql"] = re.sub(r"(?i)\blist_agg\b", "string_agg", sql_curr)
                     continue
                 break
 

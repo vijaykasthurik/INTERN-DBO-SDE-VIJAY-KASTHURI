@@ -92,4 +92,9 @@ class EvidenceLedger(BaseModel):
         for known in all_nums:
             if math.isclose(known, num, rel_tol=tolerance, abs_tol=tolerance):
                 return True
+            # Percentage scaling check (e.g. 0.124 in ledger vs 12.4 cited in narrative)
+            if math.isclose(known * 100.0, num, rel_tol=tolerance, abs_tol=tolerance):
+                return True
+            if math.isclose(known / 100.0, num, rel_tol=tolerance, abs_tol=tolerance):
+                return True
         return False

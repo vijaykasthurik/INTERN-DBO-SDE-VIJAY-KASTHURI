@@ -62,12 +62,17 @@ class Verifier:
                 )
                 replan_recommended = True
 
-        # Check for negative revenue in ledger results
-        all_ledger_numbers = ledger.get_all_numbers()
-        for num in all_ledger_numbers:
-            if num < 0 and "revenue" in draft_answer.lower():
-                reasons.append(f"Suspicious negative value ({num}) found in revenue calculation.")
-                replan_recommended = True
+        # Check for negative revenue in ledger results (excluding growth rates, deltas, and percentage changes)
+        for entry in ledger.entries:
+            if isinstance(entry.result_preview, list):
+                for row in entry.result_preview:
+                    if isinstance(row, dict):
+                        for col_k, col_v in row.items():
+                            k_lower = col_k.lower()
+                            if ("revenue" in k_lower or "price" in k_lower) and not any(kw in k_lower for kw in ["growth", "pct", "change", "diff", "delta", "prev"]):
+                                if isinstance(col_v, (int, float)) and col_v < -0.01:
+                                    reasons.append(f"Suspicious negative value ({col_v}) found in column '{col_k}'.")
+                                    replan_recommended = True
 
         # Sanity check: explicit percentage > 100% when describing a share or proportion
         explicit_percentages = re.findall(r"(\d+(?:\.\d+)?)%", draft_answer)
@@ -99,9 +104,10 @@ class Verifier:
             clean = s.replace("$", "").replace(",", "")
             try:
                 val = float(clean)
-                # Ignore small structural integers like 1..10 and calendar years (1990-2050)
+                # Ignore small structural integers (1..25, months/counts) and calendar years (1990-2050)
                 is_calendar_year = 1990 <= val <= 2050 and "." not in s
-                if (val > 10.0 or "." in s) and not is_calendar_year:
+                is_structural_int = ("." not in s) and (val <= 25.0 or val in [30.0, 31.0, 50.0, 100.0, 365.0])
+                if not is_calendar_year and not is_structural_int:
                     cited_numbers.append(round(val, 2))
             except ValueError:
                 pass

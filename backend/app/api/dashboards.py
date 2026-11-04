@@ -2,9 +2,12 @@
 
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
+from app.data.ingestion import DataIngestionPipeline
+from app.db.models import User
+from app.deps import get_current_user_optional
 from app.tools.dashboard_tool import DashboardTool
 
 router = APIRouter(prefix="/dashboards", tags=["dashboards"])
@@ -26,10 +29,18 @@ class DashboardResponse(BaseModel):
 
 
 @router.post("/generate", response_model=DashboardResponse, status_code=status.HTTP_201_CREATED)
-async def generate_dashboard(req: GenerateDashboardRequest | None = None) -> DashboardResponse:
-    """Analyze current dataset catalog and generate 4-6 responsive KPI/trend widgets."""
+async def generate_dashboard(
+    req: GenerateDashboardRequest | None = None,
+    current_user: User | None = Depends(get_current_user_optional),
+) -> DashboardResponse:
+    """Analyze current dataset catalog and generate 4-6 responsive KPI/trend widgets from real DuckDB data."""
     title = req.title if req and req.title else "Executive Sales & Operations Overview"
-    dashboard_data = _TOOL.generate_dashboard(title=title)
+    db_path = None
+    if current_user:
+        pipeline = DataIngestionPipeline()
+        db_path = pipeline.get_user_db_path(current_user.id)
+
+    dashboard_data = _TOOL.generate_dashboard(title=title, db_path=db_path)
     _DASHBOARDS_STORE[dashboard_data["id"]] = dashboard_data
 
     return DashboardResponse(
@@ -45,7 +56,6 @@ async def get_dashboard(dashboard_id: str) -> DashboardResponse:
     """Retrieve saved dashboard layout and widgets by ID."""
     dash = _DASHBOARDS_STORE.get(dashboard_id)
     if not dash:
-        # If demo dashboard requested, generate deterministic fallback
         dash = _TOOL.generate_dashboard()
         dash["id"] = dashboard_id
         _DASHBOARDS_STORE[dashboard_id] = dash

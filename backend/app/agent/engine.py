@@ -116,6 +116,9 @@ Rules:
 4. For all other data queries, calculations, aggregations, and trends, set "tool": "sql_tool":
    - The query MUST be a SELECT-only DuckDB SQL query. No mutations.
    - Standard net revenue definition: SUM(quantity * unit_price * (1 - discount))
+   - For string aggregation: use string_agg(column, ', ') or list(column). Do not use list_agg.
+   - For monthly trends: use STRFTIME(CAST(order_date AS DATE), '%Y-%m') AS month.
+   - For YoY growth: use a CTE and window function LAG(revenue, 12) OVER (ORDER BY month). Avoid INTERVAL arithmetic.
    - Recommended chart type: 'bar' (rankings/comparisons), 'line' (time series), 'pie' (shares), 'scatter', or 'none'.
 
 Respond ONLY with valid JSON conforming to:

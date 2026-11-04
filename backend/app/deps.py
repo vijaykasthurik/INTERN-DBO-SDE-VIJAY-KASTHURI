@@ -41,3 +41,23 @@ def get_current_user(
         raise AuthenticationError("User not found or inactive")
 
     return user
+
+
+def get_current_user_optional(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Extract authenticated User entity if present, otherwise return None."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.split(" ", 1)[1]
+    try:
+        claims = decode_token(token)
+        if claims.get("type") != "access":
+            return None
+        user_id = claims.get("sub")
+        if not user_id:
+            return None
+        return db.query(User).filter(User.id == int(str(user_id)), User.is_active.is_(True)).first()
+    except Exception:
+        return None
