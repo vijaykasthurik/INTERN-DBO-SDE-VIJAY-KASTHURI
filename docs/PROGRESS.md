@@ -167,3 +167,8 @@ Confirm live configuration without credential output; wire relationship-backed d
 - Live eval: .venv/Scripts/python.exe eval/run_eval.py --live completed 32 cases at 53.1% accuracy, verifier 40.6%; quota errors included the configured shared limit of 30 requests/hour. Preserved failing eval/RESULTS.md; costs are not measured. No benchmark questions were special-cased.
 - Live Playwright Phase 13 flow was attempted repeatedly and remains failing at the 45-second deadline; an earlier attempt reached Run SQL disabled after a live narration failure. PDF/dashboard stages ran, but the whole live flow and deletion cannot be claimed passed.
 - OPEN: live benchmark accuracy/provider quota failures; live browser full-flow completion; every-control-per-signed-in-page suite has NOT been implemented; Docker build/up unavailable. No phase-13-complete tag is justified. Autocommit worker remains running.
+## Final completion pass plan
+1. Audit current UI and APIs against N1-N16/R1-R16 without changing product code; capture browser evidence at 375/768/1440 and write NEEDS_CHECKLIST/REQUIREMENTS_CHECK.
+2. Fix only missing/broken public, branding, data, agent and control behavior in the latest numbered order, preserving working UI and owner changes.
+3. Add targeted regression coverage, run live and offline gates, refresh docs/media, clean-clone and secret scans; push each stage; tag only on complete verified success.
+Initial worktree is clean at 98ed092. Prior verification claims are historical, not proof of this pass.

@@ -1,0 +1,1064 @@
+[
+  {
+    "route": "/",
+    "width": 375,
+    "url": "http://localhost:5173/",
+    "headings": [
+      "Instant clarity from raw tabular data.",
+      "How Lumen guarantees mathematical certainty",
+      "Engineered for high-stakes business analytics"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Launch Workspace",
+      "Explore Sample Data",
+      "Workspace",
+      "Datasets",
+      "Diagnostics"
+    ],
+    "buttons": [
+      "Launch Workspace",
+      "Explore Sample Data"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/home-375.png"
+  },
+  {
+    "route": "/how-it-works",
+    "width": 375,
+    "url": "http://localhost:5173/how-it-works",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/how-it-works-375.png"
+  },
+  {
+    "route": "/about",
+    "width": 375,
+    "url": "http://localhost:5173/about",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/about-375.png"
+  },
+  {
+    "route": "/contact",
+    "width": 375,
+    "url": "http://localhost:5173/contact",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/contact-375.png"
+  },
+  {
+    "route": "/workspace",
+    "width": 375,
+    "url": "http://localhost:5173/workspace",
+    "headings": [],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      " Add",
+      "Upload CSV"
+    ],
+    "buttons": [
+      "",
+      "Which region generated the highest revenue?",
+      "Show monthly sales trends.",
+      "Which products are underperforming?",
+      "What are the top five customers?",
+      "Generate SQL for this analysis.",
+      "Detect anomalies in the dataset.",
+      "Hide Reasoning",
+      "Which region generated the highest revenue?",
+      "Show monthly sales trends.",
+      "Which products are underperforming?",
+      "Detect anomalies in the dataset.",
+      "Ask"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/datasets",
+      "401 /api/v1/datasets",
+      "401 /api/v1/chat/sessions"
+    ],
+    "screenshot": "docs/media/final-audit/workspace-375.png"
+  },
+  {
+    "route": "/datasets",
+    "width": 375,
+    "url": "http://localhost:5173/datasets",
+    "headings": [
+      "Datasets & Data Quality"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Upload New CSV"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/datasets-375.png"
+  },
+  {
+    "route": "/dashboards",
+    "width": 375,
+    "url": "http://localhost:5173/dashboards",
+    "headings": [
+      "Executive Dashboards"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Export PDF",
+      "Generate Dashboard",
+      "All uploaded files"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/dashboards-375.png"
+  },
+  {
+    "route": "/reports",
+    "width": 375,
+    "url": "http://localhost:5173/reports",
+    "headings": [
+      "Executive Reports & Dossiers"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Export New Report"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/reports",
+      "401 /api/v1/reports",
+      "401 /api/v1/chat/sessions"
+    ],
+    "screenshot": "docs/media/final-audit/reports-375.png"
+  },
+  {
+    "route": "/settings",
+    "width": 375,
+    "url": "http://localhost:5173/settings",
+    "headings": [
+      "System Diagnostics & Settings"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Manage in Profile"
+    ],
+    "buttons": [
+      "Refresh Status",
+      "Add Metric",
+      "Clear My Data"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/me/ai-connection",
+      "401 /api/v1/me/ai-connection",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/settings-375.png"
+  },
+  {
+    "route": "/profile",
+    "width": 375,
+    "url": "http://localhost:5173/profile",
+    "headings": [
+      "Account & AI Connections",
+      "AI Provider Connection",
+      "Shared Server Model Pool (Demo Mode)"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Connect your AI Key"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/me/ai-connection",
+      "401 /api/v1/me/ai-connection"
+    ],
+    "screenshot": "docs/media/final-audit/profile-375.png"
+  },
+  {
+    "route": "/",
+    "width": 768,
+    "url": "http://localhost:5173/",
+    "headings": [
+      "Instant clarity from raw tabular data.",
+      "How Lumen guarantees mathematical certainty",
+      "Engineered for high-stakes business analytics"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Launch Workspace",
+      "Explore Sample Data",
+      "Workspace",
+      "Datasets",
+      "Diagnostics"
+    ],
+    "buttons": [
+      "Launch Workspace",
+      "Explore Sample Data"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/home-768.png"
+  },
+  {
+    "route": "/how-it-works",
+    "width": 768,
+    "url": "http://localhost:5173/how-it-works",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/how-it-works-768.png"
+  },
+  {
+    "route": "/about",
+    "width": 768,
+    "url": "http://localhost:5173/about",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/about-768.png"
+  },
+  {
+    "route": "/contact",
+    "width": 768,
+    "url": "http://localhost:5173/contact",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/contact-768.png"
+  },
+  {
+    "route": "/workspace",
+    "width": 768,
+    "url": "http://localhost:5173/workspace",
+    "headings": [],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      " Add",
+      "Upload CSV"
+    ],
+    "buttons": [
+      "",
+      "Which region generated the highest revenue?",
+      "Show monthly sales trends.",
+      "Which products are underperforming?",
+      "What are the top five customers?",
+      "Generate SQL for this analysis.",
+      "Detect anomalies in the dataset.",
+      "Hide Reasoning",
+      "Which region generated the highest revenue?",
+      "Show monthly sales trends.",
+      "Which products are underperforming?",
+      "Detect anomalies in the dataset.",
+      "Ask"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/datasets",
+      "401 /api/v1/chat/sessions"
+    ],
+    "screenshot": "docs/media/final-audit/workspace-768.png"
+  },
+  {
+    "route": "/datasets",
+    "width": 768,
+    "url": "http://localhost:5173/datasets",
+    "headings": [
+      "Datasets & Data Quality"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Upload New CSV"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/datasets-768.png"
+  },
+  {
+    "route": "/dashboards",
+    "width": 768,
+    "url": "http://localhost:5173/dashboards",
+    "headings": [
+      "Executive Dashboards"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Export PDF",
+      "Generate Dashboard",
+      "All uploaded files"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/dashboards-768.png"
+  },
+  {
+    "route": "/reports",
+    "width": 768,
+    "url": "http://localhost:5173/reports",
+    "headings": [
+      "Executive Reports & Dossiers"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Export New Report"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/reports",
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/reports"
+    ],
+    "screenshot": "docs/media/final-audit/reports-768.png"
+  },
+  {
+    "route": "/settings",
+    "width": 768,
+    "url": "http://localhost:5173/settings",
+    "headings": [
+      "System Diagnostics & Settings"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Manage in Profile"
+    ],
+    "buttons": [
+      "Refresh Status",
+      "Add Metric",
+      "Clear My Data"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/me/ai-connection",
+      "401 /api/v1/datasets",
+      "401 /api/v1/me/ai-connection"
+    ],
+    "screenshot": "docs/media/final-audit/settings-768.png"
+  },
+  {
+    "route": "/profile",
+    "width": 768,
+    "url": "http://localhost:5173/profile",
+    "headings": [
+      "Account & AI Connections",
+      "AI Provider Connection",
+      "Shared Server Model Pool (Demo Mode)"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Connect your AI Key"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/me/ai-connection",
+      "401 /api/v1/me/ai-connection"
+    ],
+    "screenshot": "docs/media/final-audit/profile-768.png"
+  },
+  {
+    "route": "/",
+    "width": 1440,
+    "url": "http://localhost:5173/",
+    "headings": [
+      "Instant clarity from raw tabular data.",
+      "How Lumen guarantees mathematical certainty",
+      "Engineered for high-stakes business analytics"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Launch Workspace",
+      "Explore Sample Data",
+      "Workspace",
+      "Datasets",
+      "Diagnostics"
+    ],
+    "buttons": [
+      "Launch Workspace",
+      "Explore Sample Data"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/home-1440.png"
+  },
+  {
+    "route": "/how-it-works",
+    "width": 1440,
+    "url": "http://localhost:5173/how-it-works",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/how-it-works-1440.png"
+  },
+  {
+    "route": "/about",
+    "width": 1440,
+    "url": "http://localhost:5173/about",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/about-1440.png"
+  },
+  {
+    "route": "/contact",
+    "width": 1440,
+    "url": "http://localhost:5173/contact",
+    "headings": [
+      "Page Not Found"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Return to Workspace"
+    ],
+    "buttons": [
+      "Return to Workspace"
+    ],
+    "overflow": false,
+    "errors": [],
+    "screenshot": "docs/media/final-audit/contact-1440.png"
+  },
+  {
+    "route": "/workspace",
+    "width": 1440,
+    "url": "http://localhost:5173/workspace",
+    "headings": [],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      " Add",
+      "Upload CSV"
+    ],
+    "buttons": [
+      "",
+      "Which region generated the highest revenue?",
+      "Show monthly sales trends.",
+      "Which products are underperforming?",
+      "What are the top five customers?",
+      "Generate SQL for this analysis.",
+      "Detect anomalies in the dataset.",
+      "Hide Reasoning",
+      "Which region generated the highest revenue?",
+      "Show monthly sales trends.",
+      "Which products are underperforming?",
+      "Detect anomalies in the dataset.",
+      "Ask"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/workspace-1440.png"
+  },
+  {
+    "route": "/datasets",
+    "width": 1440,
+    "url": "http://localhost:5173/datasets",
+    "headings": [
+      "Datasets & Data Quality"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Upload New CSV"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/datasets-1440.png"
+  },
+  {
+    "route": "/dashboards",
+    "width": 1440,
+    "url": "http://localhost:5173/dashboards",
+    "headings": [
+      "Executive Dashboards"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Export PDF",
+      "Generate Dashboard",
+      "All uploaded files"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/datasets"
+    ],
+    "screenshot": "docs/media/final-audit/dashboards-1440.png"
+  },
+  {
+    "route": "/reports",
+    "width": 1440,
+    "url": "http://localhost:5173/reports",
+    "headings": [
+      "Executive Reports & Dossiers"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Export New Report"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/reports",
+      "401 /api/v1/chat/sessions",
+      "401 /api/v1/reports"
+    ],
+    "screenshot": "docs/media/final-audit/reports-1440.png"
+  },
+  {
+    "route": "/settings",
+    "width": 1440,
+    "url": "http://localhost:5173/settings",
+    "headings": [
+      "System Diagnostics & Settings"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Manage in Profile"
+    ],
+    "buttons": [
+      "Refresh Status",
+      "Add Metric",
+      "Clear My Data"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/datasets",
+      "401 /api/v1/me/ai-connection",
+      "401 /api/v1/datasets",
+      "401 /api/v1/me/ai-connection"
+    ],
+    "screenshot": "docs/media/final-audit/settings-1440.png"
+  },
+  {
+    "route": "/profile",
+    "width": 1440,
+    "url": "http://localhost:5173/profile",
+    "headings": [
+      "Account & AI Connections",
+      "AI Provider Connection",
+      "Shared Server Model Pool (Demo Mode)"
+    ],
+    "links": [
+      "Lumen",
+      "Sign In",
+      "Lumen",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings",
+      "Sign In",
+      "Workspace",
+      "Datasets",
+      "Dashboards",
+      "Reports",
+      "Settings"
+    ],
+    "buttons": [
+      "Connect your AI Key"
+    ],
+    "overflow": false,
+    "errors": [
+      "401 /api/v1/me/ai-connection",
+      "401 /api/v1/me/ai-connection"
+    ],
+    "screenshot": "docs/media/final-audit/profile-1440.png"
+  }
+]
