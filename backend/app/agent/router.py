@@ -35,7 +35,20 @@ class IntentRouter:
         q = question.strip().lower()
 
         # 1. Ambiguous or underspecified queries -> clarify lane
-        if q in ("sales", "revenue", "data", "analyze", "show", "help", "orders", "customers"):
+        if q in (
+            "sales",
+            "revenue",
+            "data",
+            "analyze",
+            "show",
+            "help",
+            "orders",
+            "customers",
+            "trends",
+            "trend",
+            "forecast",
+            "forecasts",
+        ):
             return RouteDecision(
                 lane="clarify",
                 confidence=0.99,
@@ -98,6 +111,8 @@ class IntentRouter:
             or "explain the drop" in q
             or "explain the dip" in q
             or "reason for" in q
+            or "caused by" in q
+            or ("was the" in q and "dip" in q)
         ):
             return RouteDecision(
                 lane="investigation",

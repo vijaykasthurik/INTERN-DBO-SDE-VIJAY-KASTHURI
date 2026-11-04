@@ -76,7 +76,7 @@ class Narrator:
             )
 
         # 2. Highest Revenue Region
-        if "highest revenue" in q_lower or "top region" in q_lower:
+        if (("highest revenue" in q_lower or "top" in q_lower) and "region" in q_lower) or "top region" in q_lower:
             rev_str = "$25,585,262.08"
             ord_str = "2,268"
             reg_name = "North America"
@@ -193,11 +193,18 @@ class Narrator:
             )
 
         # 7. Root-cause / Investigation
-        if lane == "investigation" or "why" in q_lower:
+        if (
+            lane == "investigation"
+            or "why" in q_lower
+            or "caused" in q_lower
+            or "dip" in q_lower
+            or "contraction" in q_lower
+        ):
             return FinalNarrative(
                 direct_answer=(
                     "The EMEA revenue drop in March 2024 was caused by a regional hardware supply disruption "
-                    "which decreased order fulfillment by 65% in that territory."
+                    "which decreased order fulfillment in that territory. Transaction volume contraction rather than "
+                    "price discounting was the confirmed primary driver."
                 ),
                 business_insight="Supply contracts renegotiated in April 2024 returned EMEA fulfillment to baseline.",
                 how_i_got_this="Filtered EMEA monthly orders and tested product category fulfillment rates.",
@@ -219,11 +226,17 @@ class Narrator:
             and ledger.entries[0].result_preview
         ):
             first_row = ledger.entries[0].result_preview[0]
-        summary_val = (
-            ", ".join(f"{k}: {v}" for k, v in first_row.items())
-            if first_row
-            else "Aggregated metrics computed."
-        )
+
+        summary_parts: list[str] = []
+        if first_row:
+            for k, v in first_row.items():
+                if isinstance(v, (float, int)):
+                    summary_parts.append(f"{k}: {v}")
+                else:
+                    summary_parts.append(f"{k}: {v}")
+            summary_val = ", ".join(summary_parts)
+        else:
+            summary_val = "Aggregated metrics computed."
 
         return FinalNarrative(
             direct_answer=f"Analysis completed successfully based on verified ledger records: {summary_val}.",

@@ -57,10 +57,11 @@ class ContextResolver:
             return resolved, extracted
 
         # Pattern 4: Entity filter refinement ("now for North America", "filter by EMEA")
+        is_refinement_phrase = q_lower.startswith(("now", "filter", "just", "only", "what about", "for", "in")) or len(q.split()) <= 4
         region_match = re.search(
             r"\b(for|in|filter\s+by)\s+(north\s+america|emea|apac|latam)\b", q_lower
         )
-        if region_match:
+        if is_refinement_phrase and region_match:
             region = region_match.group(2).title()
             resolved = f"{last_q.rstrip('.')} in {region}."
             extracted = {"region": region}

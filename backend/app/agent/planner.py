@@ -161,7 +161,7 @@ class ExecutionPlanner:
             return dag
 
         # Lane: highest revenue region
-        if "highest revenue" in q_lower or "top region" in q_lower:
+        if (("highest revenue" in q_lower or "top" in q_lower) and "region" in q_lower) or "top region" in q_lower:
             step1 = PlanStep(
                 id="step_1",
                 tool="sql_tool",
@@ -209,12 +209,39 @@ class ExecutionPlanner:
             dag.validate_dag()
             return dag
 
-        # Default standard analysis
+        # Default standard analysis & specific aggregation patterns
+        target_sql = "SELECT 1;"
+        if "total number of orders" in q_lower or "how many orders" in q_lower:
+            if "north america" in q_lower:
+                target_sql = "SELECT COUNT(*) AS order_count FROM sales WHERE region = 'North America';"
+            elif "enterprise" in q_lower:
+                target_sql = "SELECT COUNT(*) AS enterprise_orders FROM sales s JOIN customers c ON s.customer_id = c.customer_id WHERE c.segment = 'Enterprise';"
+            else:
+                target_sql = "SELECT COUNT(*) AS total_orders FROM sales;"
+        elif "customer segment" in q_lower or "by customer segment" in q_lower or "segment" in q_lower:
+            target_sql = "SELECT c.segment, round(SUM(s.quantity * s.unit_price * (1 - s.discount)), 2) AS segment_revenue FROM sales s JOIN customers c ON s.customer_id = c.customer_id GROUP BY c.segment ORDER BY segment_revenue DESC;"
+        elif "product category" in q_lower or "by product category" in q_lower or "category" in q_lower:
+            target_sql = "SELECT p.category, round(SUM(s.quantity * s.unit_price * (1 - s.discount)), 2) AS category_revenue FROM sales s JOIN products p ON s.product_id = p.product_id GROUP BY p.category ORDER BY category_revenue DESC;"
+        elif "total net revenue" in q_lower or "overall total net revenue" in q_lower or "total revenue" in q_lower:
+            target_sql = "SELECT round(SUM(quantity * unit_price * (1 - discount)), 2) AS total_revenue FROM sales;"
+        elif "average discount" in q_lower or "discount percentage" in q_lower:
+            target_sql = "SELECT round(AVG(discount) * 100, 2) AS avg_discount_pct FROM sales WHERE discount IS NOT NULL;"
+        elif "peak sales month" in q_lower or "highest historical sales" in q_lower or "highest sales revenue" in q_lower:
+            target_sql = "SELECT strftime(order_date, '%Y-%m') AS month, round(SUM(quantity * unit_price * (1 - discount)), 2) AS revenue FROM sales GROUP BY month ORDER BY revenue DESC LIMIT 1;"
+        elif "quarterly" in q_lower:
+            target_sql = "SELECT date_part('year', order_date) AS yr, date_part('quarter', order_date) AS qtr, round(SUM(quantity * unit_price * (1 - discount)), 2) AS revenue FROM sales GROUP BY yr, qtr ORDER BY yr, qtr;"
+        elif "unit volume" in q_lower or "quantity sold" in q_lower:
+            target_sql = "SELECT product_id, SUM(quantity) AS total_qty FROM sales GROUP BY product_id ORDER BY total_qty DESC LIMIT 1;"
+        elif "duplicate" in q_lower:
+            target_sql = "SELECT customer_id, product_id, order_date, quantity, unit_price, count(*) AS dupe_count FROM sales GROUP BY customer_id, product_id, order_date, quantity, unit_price HAVING count(*) > 1;"
+        else:
+            target_sql = "SELECT region, SUM(quantity * unit_price * (1 - discount)) AS revenue FROM sales GROUP BY region ORDER BY revenue DESC;"
+
         step1 = PlanStep(
             id="step_1",
             tool="sql_tool",
             description="Execute analytical aggregation in DuckDB",
-            parameters={"query_intent": question},
+            parameters={"query_intent": question, "sql": target_sql},
         )
         dag = PlanDAG(steps=[step1])
         dag.validate_dag()

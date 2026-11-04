@@ -70,10 +70,10 @@ class EvidenceLedger(BaseModel):
                 for item in val:
                     _extract_recursive(item)
             elif isinstance(val, str):
-                # Search for formatted numbers like "$1,482,900.00" or "34.2%" or "1820"
-                matches = re.findall(r"[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+", val)
+                # Search for formatted numbers like "$1,482,900.00" or "34.2%" or "4959"
+                matches = re.findall(r"[$]?[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?", val)
                 for m in matches:
-                    clean_str = m.replace(",", "")
+                    clean_str = m.replace("$", "").replace(",", "")
                     try:
                         f_val = float(clean_str)
                         numbers.add(round(f_val, 2))

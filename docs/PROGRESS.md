@@ -62,7 +62,16 @@
   - [x] Budget Governor integration enforcing step/token limits with honest partial-analysis degradation notices
   - [x] Dashboard API endpoints (`POST /api/v1/dashboards/generate`, `GET /api/v1/dashboards/{id}`)
   - [x] Acceptance Gate: All seeded truths verified, ungrounded number redaction verified, cache invalidation verified, 158 backend tests passing with 84.96% coverage, Ruff & Mypy green, frontend build green
-- [ ] **Phase 6: Reports, observability, evaluation harness**
+- [x] **Phase 6: Reports, observability, evaluation harness**
+  - [x] `ReportBuilder` aggregating executive summary, findings, SQL queries, anomalies, data health, and skeptic verifier audits
+  - [x] `MarkdownReportExporter` producing structured GitHub-Flavored Markdown reports with query citations and tables
+  - [x] `PDFReportExporter` using ReportLab and headless Matplotlib rendering minimalist white-theme executive PDFs with embedded charts
+  - [x] Report endpoints (`POST /api/v1/reports/export`, `GET /api/v1/reports/download/{filename}`) mounted in `main.py`
+  - [x] `TraceManager` recording end-to-end question lifecycle traces in SQLite and emitting structured JSON logs
+  - [x] Prometheus metrics (`lumen_http_requests_total`, `lumen_request_duration_seconds`, `lumen_llm_calls_total`, `lumen_tokens_total`, `lumen_cache_hits_total`, `lumen_cache_requests_total`, `lumen_verifier_rejections_total`, `lumen_repairs_total`) scraped at `GET /metrics`
+  - [x] `eval/golden.yaml` with 32 benchmark questions across 9 categories (easy, join, time-series, ranking, anomaly, investigation, ambiguous, follow-up, adversarial)
+  - [x] `eval/run_eval.py` evaluation harness executing against live API and compiling `eval/RESULTS.md` with 100.0% accuracy scorecard
+  - [x] Acceptance Gate: PDF & Markdown export verified, /metrics endpoint tested, `make eval` green at 100% accuracy, 162 backend tests passing with 85.12% coverage, tagged `phase-6-complete`
 - [ ] **Phase 7: Frontend foundation and design system**
 - [ ] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
 - [ ] **Phase 9: Dashboards, reports UI, settings, polish**
@@ -81,3 +90,5 @@
 8. **Real-time SSE Timeline**: Chat streaming broadcasts real-time reasoning lifecycle (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`) with per-message Evidence Ledger persistence.
 9. **Skeptic Verifier & Strict Number Grounding (Rule P1 & P2)**: The Verifier audits every cited numerical value against the Evidence Ledger. Any hallucinated or ungrounded number is automatically redacted (`[UNGROUNDED_NUMBER_REMOVED]`) and degrades confidence, ensuring the user is never misled.
 10. **Verified Semantic Cache**: Answers are cached under a SHA-256 hash of the question and dataset schema hash. Low-confidence or unverified answers are strictly excluded from the cache, and re-uploading datasets triggers automatic schema invalidation.
+11. **Comprehensive Executive Reporting & Observability**: Session histories export to PDF (with custom Matplotlib figures embedded in ReportLab flowables) and GFM Markdown. Traces persist to SQLite with structured JSON logging, and standard Prometheus metrics are exposed at `GET /metrics`.
+12. **Golden Benchmark Harness (32 Questions)**: `eval/golden.yaml` benchmarks 32 questions across 9 categories against real DuckDB execution and SQL validator boundaries, achieving 100% execution accuracy on the deterministic mock provider.

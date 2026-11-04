@@ -72,16 +72,16 @@ class Verifier:
         # Sanity check: explicit percentage > 100% when describing a share or proportion
         explicit_percentages = re.findall(r"(\d+(?:\.\d+)?)%", draft_answer)
         for p_str in explicit_percentages:
-            p_val = float(p_str)
-            if p_val > 100.0 and not any(kw in draft_answer.lower() for kw in ["growth", "increase", "spike"]):
-                reasons.append(f"Improbable percentage or share value ({p_val}%) detected.")
+            pct_val = float(p_str)
+            if pct_val > 100.0 and not any(kw in draft_answer.lower() for kw in ["growth", "increase", "spike"]):
+                reasons.append(f"Improbable percentage or share value ({pct_val}%) detected.")
                 replan_recommended = True
 
         # 2. SQL vs Pandas Cross-Check
         if sql_result is not None and pandas_result is not None:
             try:
-                s_val = float(sql_result) if not isinstance(sql_result, (dict, list)) else None
-                p_val = float(pandas_result) if not isinstance(pandas_result, (dict, list)) else None
+                s_val: float | None = float(sql_result) if not isinstance(sql_result, (dict, list)) else None
+                p_val: float | None = float(pandas_result) if not isinstance(pandas_result, (dict, list)) else None
                 if s_val is not None and p_val is not None and not math.isclose(s_val, p_val, rel_tol=0.01):
                     cross_check_passed = False
                     reasons.append(
@@ -93,14 +93,15 @@ class Verifier:
 
         # 3. Strict Number Grounding (Rule P1: LLM never invents numbers)
         # Extract all numbers from draft text
-        cited_number_strings = re.findall(r"[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+", draft_answer)
+        cited_number_strings = re.findall(r"[$]?[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?", draft_answer)
         cited_numbers: list[float] = []
         for s in cited_number_strings:
-            clean = s.replace(",", "")
+            clean = s.replace("$", "").replace(",", "")
             try:
                 val = float(clean)
-                # Ignore small structural integers like 1, 2, 3, 4, 5 in bullets or rankings
-                if val > 10.0 or "." in s:
+                # Ignore small structural integers like 1..10 and calendar years (1990-2050)
+                is_calendar_year = 1990 <= val <= 2050 and "." not in s
+                if (val > 10.0 or "." in s) and not is_calendar_year:
                     cited_numbers.append(round(val, 2))
             except ValueError:
                 pass
@@ -129,7 +130,7 @@ class Verifier:
                     pass
                 return str(raw)
 
-            num_pattern = re.compile(r"\$?[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\$?\d+")
+            num_pattern = re.compile(r"[$]?[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?")
             sanitized_text = num_pattern.sub(_redact_ungrounded, draft_answer)
 
         # 4. Determine Confidence Tier

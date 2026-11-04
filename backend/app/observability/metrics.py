@@ -12,10 +12,13 @@ REQUEST_LATENCY = Histogram(
     "lumen_request_duration_seconds", "Request latency in seconds", ["endpoint"]
 )
 LLM_CALLS = Counter("lumen_llm_calls_total", "Total LLM completions", ["provider", "tier"])
+TOKEN_USAGE = Counter("lumen_tokens_total", "Total tokens processed", ["type"])
+CACHE_HITS = Counter("lumen_cache_hits_total", "Total verified answer cache hits")
+CACHE_REQUESTS = Counter("lumen_cache_requests_total", "Total cache lookups", ["status"])
 VERIFIER_REJECTIONS = Counter(
     "lumen_verifier_rejections_total", "Total answers rejected or corrected by Verifier"
 )
-CACHE_HITS = Counter("lumen_cache_hits_total", "Total verified answer cache hits")
+REPAIR_COUNTS = Counter("lumen_repairs_total", "Total query repair attempts", ["error_type"])
 
 
 def get_latest_metrics() -> bytes:
@@ -27,8 +30,11 @@ __all__ = [
     "REQUEST_COUNT",
     "REQUEST_LATENCY",
     "LLM_CALLS",
-    "VERIFIER_REJECTIONS",
+    "TOKEN_USAGE",
     "CACHE_HITS",
+    "CACHE_REQUESTS",
+    "VERIFIER_REJECTIONS",
+    "REPAIR_COUNTS",
     "get_latest_metrics",
     "CONTENT_TYPE_LATEST",
 ]
