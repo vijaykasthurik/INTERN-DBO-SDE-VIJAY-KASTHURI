@@ -153,6 +153,33 @@ def test_reports_api_endpoints() -> None:
         assert "West recorded revenue of 12.5" in dl_md_res.text
         assert client.get(pdf_data["download_url"]).status_code == 401
 
+        # 3. List reports
+        list_res = client.get("/api/v1/reports", headers=headers)
+        assert list_res.status_code == 200
+        report_list = list_res.json()
+        assert len(report_list) == 2
+        report_ids = [r["report_id"] for r in report_list]
+        assert pdf_data["report_id"] in report_ids
+        assert md_data["report_id"] in report_ids
+
+        # 4. Preview both artifacts (verifying preview payload from the same artifacts)
+        pdf_preview_res = client.get(pdf_data["download_url"], headers=headers)
+        assert pdf_preview_res.status_code == 200
+        assert pdf_preview_res.content.startswith(b"%PDF-")
+        md_preview_res = client.get(md_data["download_url"], headers=headers)
+        assert md_preview_res.status_code == 200
+        assert "West recorded revenue of 12.5" in md_preview_res.text
+
+        # 5. Delete report
+        del_res = client.delete(f"/api/v1/reports/{md_data['report_id']}", headers=headers)
+        assert del_res.status_code == 204
+        # Verify it is no longer listed
+        after_del_list = client.get("/api/v1/reports", headers=headers).json()
+        assert len(after_del_list) == 1
+        assert after_del_list[0]["report_id"] == pdf_data["report_id"]
+        # Verify download returns 404
+        assert client.get(md_data["download_url"], headers=headers).status_code == 404
+
     app.dependency_overrides.clear()
     db.close()
     Base.metadata.drop_all(bind=engine)

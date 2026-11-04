@@ -32,6 +32,8 @@ prometheus-client>=0.21.0,<0.22.0
 # Reports & Visuals
 reportlab>=4.2.2,<5.0.0
 matplotlib>=3.9.0,<4.0.0
+svglib>=2.3.0,<3.0.0
+pypdf>=5.0.0,<7.0.0
 
 # Embeddings (fallback handled in code)
 fastembed>=0.3.6,<0.4.0

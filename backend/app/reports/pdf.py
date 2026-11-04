@@ -36,18 +36,29 @@ class Wordmark(Flowable):
     def draw(self) -> None:
         from reportlab.graphics import renderPDF
         from svglib.svglib import svg2rlg
-        source = Path(__file__).resolve().parents[3] / "frontend" / "public" / "wordmark.svg"
+        source = Path(__file__).resolve().parent / "wordmark.svg"
+        if not source.exists():
+            source = Path(__file__).resolve().parents[3] / "frontend" / "public" / "wordmark.svg"
         if not source.exists():
             source = Path("/app/assets/wordmark.svg")
-        drawing = svg2rlg(str(source))
-        if drawing is None:
-            raise ValueError("Lumen wordmark could not be loaded.")
-        scale = self.width/drawing.width
-        drawing.scale(scale,scale)
-        renderPDF.draw(drawing,self.canv,0,0)
-        text = self.canv.beginText(0,0)
+        drawing = None
+        if source.exists():
+            try:
+                drawing = svg2rlg(str(source))
+            except Exception:
+                drawing = None
+        svg_width = float(getattr(drawing, "width", 0.0)) if drawing is not None else 0.0
+        if drawing is not None and svg_width > 0:
+            scale = self.width / svg_width
+            drawing.scale(scale, scale)
+            renderPDF.draw(drawing, self.canv, 0, 0)
+        else:
+            self.canv.setFont("Helvetica-Bold", 16)
+            self.canv.setFillColor(colors.HexColor("#0B0B0F"))
+            self.canv.drawString(0, 8, "Lumen")
+        text = self.canv.beginText(0, 0)
         text.setTextRenderMode(3)
-        text.setFont("Helvetica",10)
+        text.setFont("Helvetica", 10)
         text.textLine("Lumen")
         self.canv.drawText(text)
 

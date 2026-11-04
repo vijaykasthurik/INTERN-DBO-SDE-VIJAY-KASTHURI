@@ -373,6 +373,7 @@ export const api = {
 
   reports: {
     list: () => request<ReportArtifactItem[]>("/reports"),
+    delete: (reportId: string) => request<void>(`/reports/${reportId}`, { method: "DELETE" }),
     export: (data: { session_id?: string; title?: string; format: "pdf" | "md"; dashboard?: DashboardResponse }) =>
       request<ReportExportResponse>("/reports/export", {
         method: "POST",
