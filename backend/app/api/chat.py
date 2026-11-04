@@ -82,6 +82,7 @@ async def execute_sql(
     tool = SQLTool(
         db_path=pipeline.get_user_db_path(current_user.id),
         allowed_tables=[dataset.duckdb_table_name for dataset in datasets],
+        enforce_relationships=True,
     )
     try:
         return tool.execute(req.sql)

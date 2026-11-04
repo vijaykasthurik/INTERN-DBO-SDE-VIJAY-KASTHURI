@@ -225,7 +225,9 @@ def test_dataset_pagination_dashboard_scopes_and_cascade_delete(agent_test_env) 
         headers=headers,
     )
     final = next(event for event in _parse_sse_events(answer_events.text) if event.get("event_type") == "final")
-    assert dataset["table_name"] not in final["payload"]["direct_answer"]
+    assert f"### {dataset['table_name']}\n" not in final["payload"]["direct_answer"]
+    overview = next(event for event in _parse_sse_events(answer_events.text) if event.get("event_type") == "step_result" and event["payload"].get("tool") == "overview_tool")
+    assert dataset["table_name"] not in {table["table"] for table in overview["payload"]["result_preview"]["tables"]}
 
 
 def test_sse_ordering_and_event_lifecycle(agent_test_env) -> None:

@@ -45,7 +45,9 @@ class SQLTool:
         allowed_tables: list[str] | set[str] | None = None,
         max_limit: int = 1000,
         timeout_sec: float = 15.0,
+        enforce_relationships: bool = False,
     ) -> None:
+        self.enforce_relationships = enforce_relationships
         self.db_path = db_path
         self.validator = SQLValidator(allowed_tables=allowed_tables, max_limit=max_limit)
         self.timeout_sec = timeout_sec
@@ -55,6 +57,10 @@ class SQLTool:
         start_time = time.perf_counter()
         sanitized_sql = self.validator.validate_and_sanitize(sql_query)
 
+        join_checks: list[dict[str, Any]] = []
+        if self.enforce_relationships:
+            from app.safety.relationship_guard import validate_base_joins
+            join_checks = validate_base_joins(sanitized_sql,self.db_path,list(self.validator.allowed_tables or []))
         con = duckdb.connect(self.db_path, read_only=True)
         try:
 
@@ -81,6 +87,7 @@ class SQLTool:
 
             return {
                 "success": True,
+                "join_checks": join_checks,
                 "columns": list(df.columns),
                 "rows": df.to_dict(orient="records"),
                 "row_count": len(df),

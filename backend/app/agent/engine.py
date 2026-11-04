@@ -93,6 +93,9 @@ class AgentEngine:
     ) -> PlanDAG | None:
         """Dynamically generate execution plan and SQL query using active live LLM provider."""
         schema_summary = _get_table_schema_summary(db_path, allowed_tables)
+        from app.safety.relationship_guard import reliable_relationships
+        edges = reliable_relationships(db_path,allowed_tables)
+        schema_summary += "\nVerified relationships (only these base-table keys may be joined):\n" + json.dumps(edges)
         prompt = f"""You are Lumen's Autonomous SQL & Analytics Planner.
 Database Schema:
 {schema_summary}
@@ -106,6 +109,7 @@ Rules:
 3. If the question investigates why a metric dropped or changed, set "tool": "hypothesis_tool".
 4. For all other data queries, calculations, aggregations, and trends, set "tool": "sql_tool":
    - The query MUST be a SELECT-only DuckDB SQL query. No mutations.
+   - Use only verified relationship keys for cross-file joins. Qualify columns by table alias. Never create a Cartesian join.
    - Standard net revenue definition: SUM(quantity * unit_price * (1 - discount))
    - For string aggregation: use string_agg(column, ', ') or list(column). Do not use list_agg.
    - For monthly trends: use STRFTIME(CAST(order_date AS DATE), '%Y-%m') AS month.
@@ -325,7 +329,7 @@ Respond ONLY with valid JSON conforming to:
         yield AgentEvent(event_type="route", trace_id=trace_id, payload={"lane": route.lane, "confidence": route.confidence, "reason": route.reason, "resolved_question": resolved_question})
         tools_registry: dict[str, Any] = {
             "overview_tool": DatasetOverviewTool(db_path,allowed_tables),
-            "sql_tool": SQLTool(db_path=db_path, allowed_tables=allowed_tables),
+            "sql_tool": SQLTool(db_path=db_path, allowed_tables=allowed_tables, enforce_relationships=True),
             "pandas_tool": PandasTool(),
             "chart_tool": ChartTool(),
             "search_tool": SearchTool(),
