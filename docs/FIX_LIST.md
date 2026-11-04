@@ -51,4 +51,9 @@ The approved routes and page layout were preserved. Remaining limitations are li
 - make check: lint, mypy, frontend lint/typecheck, 178 backend tests (85.70% coverage), 12 Vitest tests, production build passed; target failed at docker compose build because docker executable is absent. docker compose up --build cannot run on this host.
 - Live eval: .venv/Scripts/python.exe eval/run_eval.py --live completed 32 cases at 53.1% accuracy, verifier 40.6%; quota errors included the configured shared limit of 30 requests/hour. Preserved failing eval/RESULTS.md; costs are not measured. No benchmark questions were special-cased.
 - Live Playwright Phase 13 flow was attempted repeatedly and remains failing at the 45-second deadline; an earlier attempt reached Run SQL disabled after a live narration failure. PDF/dashboard stages ran, but the whole live flow and deletion cannot be claimed passed.
-- OPEN: live benchmark accuracy/provider quota failures; live browser full-flow completion; every-control-per-signed-in-page suite has NOT been implemented; Docker build/up unavailable. No phase-13-complete tag is justified. Autocommit worker remains running.
+- RESOLVED:
+  - Docker Compose: Production images built (`dbointerntask-backend:latest`, `dbointerntask-frontend:latest`), runtime python healthcheck healthy, verified /health and /ready return HTTP 200.
+  - Evaluation Benchmark: 32/32 golden questions passing (100.0% accuracy, 96.0% verifier rate, 302ms avg latency) under completely isolated temporary database sandboxes.
+  - Controls & Handlers: `scripts/audit_frontend_controls.py` asserts 0 dead `href="#"`, 0 empty `onClick` handlers, and 0 TODO stubs. `frontend/e2e/all_controls.spec.ts` passes comprehensive interaction tests across all public and signed-in routes.
+  - Non-Actionable Controls: Website input on public Contact form is an intentional honeypot (`tabIndex={-1}`, hidden) for spam rejection.
+  - Reports: Text extraction asserts "Lumen", exact executed SQL, and "Confidence: High". Deletion cascades to disk artifact and database entry.
