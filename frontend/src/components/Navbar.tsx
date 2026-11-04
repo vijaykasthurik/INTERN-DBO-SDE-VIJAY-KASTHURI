@@ -164,9 +164,9 @@ export const Navbar: React.FC = () => {
                 {connection?.connected
                   ? connection.provider_id?.toUpperCase()
                   : providerMode === "mock"
-                  ? "Offline demo"
+                  ? "Shared AI (Demo)"
                   : providerMode
-                  ? "Shared models"
+                  ? "Shared AI"
                   : "Model unavailable"}
               </span>
             </button>

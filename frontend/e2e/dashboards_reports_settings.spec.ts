@@ -1,6 +1,17 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Dashboards, Reports, Settings, Command Palette & 404 E2E", () => {
+  test.beforeEach(async ({ page, request }) => {
+    const testEmail = `drs_${Date.now()}_${Math.floor(Math.random() * 1000)}@example.com`;
+    const regRes = await request.post("/api/v1/auth/register", {
+      data: { email: testEmail, password: "PassWord123!", full_name: "DRS Tester" },
+    });
+    if (regRes.ok()) {
+      const { access_token: token } = await regRes.json();
+      await page.addInitScript((val: string) => localStorage.setItem("lumen_access_token", val), token);
+    }
+  });
+
   test("dashboards: empty state and live generation error without uploaded data", async ({ page }) => {
     await page.goto("/dashboards");
     await expect(page.locator("h1")).toContainText("Executive Dashboards");
