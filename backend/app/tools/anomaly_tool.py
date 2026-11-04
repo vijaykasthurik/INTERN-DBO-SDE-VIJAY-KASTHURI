@@ -24,7 +24,7 @@ class AnomalyTool:
         if len(series) < 10:
             return {"outliers": [], "duplicates": [], "summary": {"outliers_detected": 0, "duplicate_rows": 0}}
 
-        vals: np.ndarray = np.asarray(series.to_numpy(), dtype=float)
+        vals = np.asarray(series.to_numpy(), dtype=float)
         mean = float(np.mean(vals))
         std = float(np.std(vals))
         q1 = float(np.percentile(vals, 25))
