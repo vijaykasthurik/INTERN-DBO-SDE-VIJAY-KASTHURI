@@ -80,8 +80,24 @@
   - [x] Landing page with Instrument Serif accent headline, live looping mini-demo (question -> DAG plan lighting up -> DuckDB execution -> chart drawing in), feature grid, and architectural explanation
   - [x] Dataset onboarding screen with large dropzone, animated progress ring, Data Health score ring, expandable quality breakdown (duplicates, missing, impossible values), foreign key relationship graph, and column profiling
   - [x] Acceptance Gate: Vitest tests green (12 tests), Playwright smoke tests green (register -> login -> upload CSV -> profile + health score), visual review screenshots captured across 375px, 768px, 1440px viewports with zero horizontal overflow, `make check` passing green, tagged `phase-7-complete`
-- [ ] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
-- [ ] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
+- [x] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
+  - [x] Three-pane workspace layout: collapsible left dataset rail with table counts and prompt pills, center streaming chat with composer, and collapsible right Reasoning panel
+  - [x] Real-time SSE chat streaming (`ChatStreamService.ts`) with lifecycle events (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`) and clean `AbortController` cancellation
+  - [x] Animated Reasoning Timeline (`ReasoningTimeline.tsx`) visualizing the execution DAG, step runtimes, repair self-correction loop, and Skeptic Verifier checklist with High/Medium/Low confidence tooltips
+  - [x] Evidence Drawer (`EvidenceDrawer.tsx`) springing in from the right with syntax-highlighted DuckDB SQL, Pandas equivalent, interactive result rows table, and ledger audit steps
+  - [x] Dynamic Apache ECharts renderer (`ChartRenderer.tsx`) for bars, lines, pies, and outlier scatter plots with editorial styling and PNG download export
+  - [x] Clarify lane with tappable option chips, multivariate anomaly cards, and suggested follow-up chips
+  - [x] Acceptance Gate: Playwright e2e green across the six assignment questions (streaming answers, charts, Evidence drawer, timeline nodes), follow-up conversational context verified, abort handling verified, zero console errors, `make check` passing green, tagged `phase-8-complete`
+- [ ] **Phase 9: Dashboards, reports UI, settings, polish**
+- [x] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
+  - [x] Three-pane workspace layout: collapsible left dataset rail with table counts and prompt pills, center streaming chat with composer, and collapsible right Reasoning panel
+  - [x] Real-time SSE chat streaming (`ChatStreamService.ts`) with lifecycle events (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`) and clean `AbortController` cancellation
+  - [x] Animated Reasoning Timeline (`ReasoningTimeline.tsx`) visualizing the execution DAG, step runtimes, repair self-correction loop, and Skeptic Verifier checklist with High/Medium/Low confidence tooltips
+  - [x] Evidence Drawer (`EvidenceDrawer.tsx`) springing in from the right with syntax-highlighted DuckDB SQL, Pandas equivalent, interactive result rows table, and ledger audit steps
+  - [x] Dynamic Apache ECharts renderer (`ChartRenderer.tsx`) for bars, lines, pies, and outlier scatter plots with editorial styling and PNG download export
+  - [x] Clarify lane with tappable option chips, multivariate anomaly cards, and suggested follow-up chips
+  - [x] Acceptance Gate: Playwright e2e green across the six assignment questions (streaming answers, charts, Evidence drawer, timeline nodes), follow-up conversational context verified, abort handling verified, zero console errors, `make check` passing green, tagged `phase-8-complete`
+- [ ] **Phase 9: Dashboards, reports UI, settings, polish**
 - [ ] **Phase 9: Dashboards, reports UI, settings, polish**
 - [ ] **Phase 10: Integration, Docker, docs, media**
 
