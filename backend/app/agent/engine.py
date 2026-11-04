@@ -139,6 +139,8 @@ Respond ONLY with valid JSON conforming to:
             content = content.split("```json")[1].split("```")[0].strip()
         elif "```" in content:
             content = content.split("```")[1].split("```")[0].strip()
+        elif "{" in content and "}" in content:
+            content = content[content.find("{"):content.rfind("}") + 1].strip()
 
         data = json.loads(content)
         tool = data.get("tool", "sql_tool")
@@ -258,6 +260,8 @@ Respond ONLY with valid JSON conforming to:
             content = content.split("```json")[1].split("```")[0].strip()
         elif "```" in content:
             content = content.split("```")[1].split("```")[0].strip()
+        elif "{" in content and "}" in content:
+            content = content[content.find("{"):content.rfind("}") + 1].strip()
 
         data = json.loads(content)
 
