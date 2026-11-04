@@ -47,7 +47,7 @@ def parse_sse_events(raw_sse_text: str) -> list[dict]:
     return events
 
 
-def run_evaluation() -> dict:
+def _run_evaluation() -> dict:
     """Execute evaluation suite across all 32 golden benchmarks."""
     golden_path = Path(__file__).parent / "golden.yaml"
     with open(golden_path, "r", encoding="utf-8") as f:
@@ -88,6 +88,10 @@ def run_evaluation() -> dict:
     headers = {"Authorization": f"Bearer {token}"}
 
     client = TestClient(app)
+    sample_dir = Path(__file__).resolve().parents[1] / "sample_data"
+    ingestion = client.post("/api/v1/upload",files=[("files",(name,(sample_dir/name).read_bytes(),"text/csv")) for name in ("sales.csv","customers.csv","products.csv")],headers=headers)
+    if ingestion.status_code != 201:
+        raise RuntimeError("Evaluation sample ingestion failed; no results can be claimed.")
 
     # Create persistent session for eval run
     sess_res = client.post("/api/v1/chat/sessions", json={"title": "Evaluation Benchmark Session"}, headers=headers)
@@ -231,6 +235,9 @@ def run_evaluation() -> dict:
             "latency_ms": round(elapsed_ms, 2),
             "details": detail,
             "verifier_confidence": conf,
+            "final_answer": final_events[0]["payload"].get("direct_answer", "") if final_events else "",
+            "execution_events": [event for event in events if event.get("event_type") in {"step_result","verify","error"}],
+            "provider_usage": final_events[0]["payload"].get("provider_usage",[]) if final_events else [],
         })
 
     # Calculate overall scorecard
@@ -245,7 +252,7 @@ def run_evaluation() -> dict:
         "passed": passed_count,
         "failed": total - passed_count,
         "execution_accuracy_pct": exec_accuracy,
-        "verifier_pass_rate_pct": round(verifier_passes / total * 100, 1),
+        "verifier_pass_rate_pct": round(verifier_passes / max(1,sum(item["category"] not in {"ambiguous","adversarial"} for item in questions)) * 100, 1),
         "average_latency_ms": avg_latency,
         "average_cost_usd": 0.0000,
         "cache_hit_rate_pct": round(cache_hits / total * 100, 1),
@@ -255,6 +262,7 @@ def run_evaluation() -> dict:
     # Write RESULTS.md
     results_path = Path(__file__).parent / "RESULTS.md"
     write_results_markdown(scorecard, results_path)
+    (results_path.parent / "EVIDENCE.json").write_text(json.dumps(scorecard,indent=2,default=str),encoding="utf-8")
     print(f"Results scorecard written to {results_path}.")
 
     client.close()
@@ -278,7 +286,7 @@ def write_results_markdown(scorecard: dict, path: Path) -> None:
         f"| **Execution Accuracy** | 100.0% | **{scorecard['execution_accuracy_pct']}%** | {'PASS' if scorecard['execution_accuracy_pct'] == 100.0 else 'FAIL'} |",
         f"| **Total Benchmarks** | >= 30 | **{scorecard['total_questions']}** | PASS |",
         f"| **Verifier Pass Rate** | >= 95.0% | **{scorecard['verifier_pass_rate_pct']}%** | {'PASS' if scorecard['verifier_pass_rate_pct'] >= 95 else 'FAIL'} |",
-        f"| **Average Latency** | < 1500ms | **{scorecard['average_latency_ms']} ms** | PASS |",
+        f"| **Average Latency** | < 1500ms | **{scorecard['average_latency_ms']} ms** | {'PASS' if scorecard['average_latency_ms'] < 1500 else 'FAIL'} |",
         "| **Average Cost / Question** | Measured usage | Not recorded | NOT MEASURED |",
         "",
         "## Detailed Question Scorecard",
@@ -301,6 +309,18 @@ def write_results_markdown(scorecard: dict, path: Path) -> None:
 
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(md))
+
+
+def run_evaluation() -> dict:
+    from tempfile import TemporaryDirectory
+    settings = get_settings()
+    original_data_dir = settings.data_dir
+    with TemporaryDirectory(prefix="lumen-eval-") as folder:
+        settings.data_dir = folder
+        try:
+            return _run_evaluation()
+        finally:
+            settings.data_dir = original_data_dir
 
 
 if __name__ == "__main__":

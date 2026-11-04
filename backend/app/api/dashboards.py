@@ -55,7 +55,13 @@ async def generate_dashboard(
         raise HTTPException(status_code=409, detail="Upload a dataset before generating a dashboard.")
     scope = req.scope if req else "combined"
     selected = None
-    if scope != "combined":
+    file_datasets = None
+    if scope.startswith("file:"):
+        source = scope.removeprefix("file:")
+        file_datasets = [dataset for dataset in datasets if (dataset.source_filename or dataset.name) == source]
+        if not file_datasets:
+            raise HTTPException(status_code=404, detail="Source file is no longer available.")
+    elif scope != "combined":
         try:
             selected_id = int(scope)
         except ValueError as exc:
@@ -67,12 +73,17 @@ async def generate_dashboard(
     dashboard_data = _TOOL.generate_dashboard(
         title=title, db_path=pipeline.get_user_db_path(current_user.id),
         scope_table=selected.duckdb_table_name if selected else None,
+        scope_tables=[dataset.duckdb_table_name for dataset in file_datasets] if file_datasets else None,
+        source_names={dataset.duckdb_table_name:dataset.source_filename or dataset.name for dataset in datasets},
     )
+    if file_datasets:
+        dashboard_data["scope"] = scope
+        dashboard_data["scope_label"] = scope.removeprefix("file:")
     preference = db.query(DashboardOrder).filter(DashboardOrder.user_id == current_user.id, DashboardOrder.scope == scope).first()
     if preference:
         positions = {widget_id: index for index, widget_id in enumerate(preference.widget_ids)}
         dashboard_data["widgets"].sort(key=lambda widget: positions.get(widget["id"], len(positions)))
-    dataset_ids = {selected.id} if selected else {dataset.id for dataset in datasets}
+    dataset_ids = {selected.id} if selected else {dataset.id for dataset in file_datasets or datasets}
     _DASHBOARDS_STORE[dashboard_data["id"]] = (current_user.id, dashboard_data, dataset_ids)
 
     return DashboardResponse(
@@ -120,7 +131,7 @@ async def save_widget_order(dashboard_id: str, body: WidgetOrderRequest, current
     expected = {widget["id"] for widget in data["widgets"]}
     if len(body.widget_ids) != len(expected) or set(body.widget_ids) != expected:
         raise HTTPException(status_code=422, detail="Widget order must include every current widget once.")
-    scope = "combined" if data["scope"] == "combined" else str(next(iter(stored[2])))
+    scope = data["scope"] if data["scope"] == "combined" or data["scope"].startswith("file:") else str(next(iter(stored[2])))
     preference = db.query(DashboardOrder).filter(DashboardOrder.user_id == current_user.id, DashboardOrder.scope == scope).first()
     if preference is None:
         preference = DashboardOrder(user_id=current_user.id, scope=scope)

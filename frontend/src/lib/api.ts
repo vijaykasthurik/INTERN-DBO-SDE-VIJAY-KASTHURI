@@ -45,6 +45,7 @@ export interface DataQualityReport {
 }
 
 export interface Dataset {
+  source_filename?: string;
   id: number | string;
   name: string;
   table_name?: string;

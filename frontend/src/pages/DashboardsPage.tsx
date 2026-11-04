@@ -47,7 +47,7 @@ export const DashboardsPage: React.FC = () => {
   const [fullscreenWidget, setFullscreenWidget] = useState<DashboardWidget | null>(null);
   const [exportSuccess, setExportSuccess] = useState<boolean>(false);
   const [exportError, setExportError] = useState<string | null>(uploadWarnings.length ? uploadWarnings.join("; ") : null);
-  const [scopes, setScopes] = useState<DashboardScope[]>([{ id: "combined", title: "All uploaded files" }]);
+  const [scopes, setScopes] = useState<DashboardScope[]>([{ id: "combined", title: "All files (combined)" }]);
 
   const fetchDashboard = useCallback(async (title?: string, scope = "combined") => {
     setLoading(true);
@@ -66,7 +66,9 @@ export const DashboardsPage: React.FC = () => {
 
   useEffect(() => {
     api.datasets.list().then((datasets) => {
-      const available = [{ id: "combined", title: "All uploaded files" }, ...datasets.map((dataset) => ({ id: String(dataset.id), title: dataset.name }))];
+      const groups = new Map<string,typeof datasets>();
+      for(const dataset of datasets){const source=dataset.source_filename||dataset.name;groups.set(source,[...(groups.get(source)||[]),dataset]);}
+      const available = [{id:"combined",title:"All files (combined)"},...Array.from(groups.entries()).map(([source,items])=>({id:items.length===1?String(items[0].id):`file:${source}`,title:items.length===1?items[0].name:source}))];
       setScopes(available);
       return fetchDashboard(undefined, "combined");
     }).catch((err: unknown) => {

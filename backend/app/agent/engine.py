@@ -111,6 +111,8 @@ Rules:
 5. For all other data queries, calculations, aggregations, and trends, set "tool": "sql_tool":
    - The query MUST be a SELECT-only DuckDB SQL query. No mutations.
    - Use only verified relationship keys for cross-file joins. Qualify columns by table alias. Never create a Cartesian join.
+   - Preserve the fact-table row grain. Use COUNT(*) for counts of records/orders unless unique or distinct is explicitly requested. Do not deduplicate rows unless asked.
+   - Include filter/group labels that will be cited (such as month or region) in the selected result columns, so every cited value is recorded in evidence.
    - Standard net revenue definition: SUM(quantity * unit_price * (1 - discount))
    - For string aggregation: use string_agg(column, ', ') or list(column). Do not use list_agg.
    - For monthly trends: use STRFTIME(CAST(order_date AS DATE), '%Y-%m') AS month.
@@ -222,7 +224,7 @@ Evidence Ledger (the immutable source of truth):
 
 Strict Principles (Rule P1 & P2):
 1. The LLM NEVER computes or invents numbers. You may ONLY cite numbers that exist in the Evidence Ledger.
-2. Format numbers nicely ($X,XXX.XX or percentages).
+2. Preserve exact recorded integer counts. Use ISO date/month strings exactly as recorded. Do not round counts or invent comparisons/time windows. Only use currency or percentages when the evidence identifies that unit.
 3. Provide a clear direct answer, business insight, and citation of how the data was queried.
 4. Suggest 3 relevant analytical follow-up questions.
 
@@ -512,7 +514,7 @@ Respond ONLY with valid JSON conforming to:
         yield AgentEvent(
             event_type="final",
             trace_id=trace_id,
-            payload=draft_narrative.model_dump(),
+            payload={**draft_narrative.model_dump(), "provider_usage": self.llm_router.usage_by_analysis.get(trace_id,[])},
         )
 
         # Cache only verified, non-Low confidence answers (Rule P2)

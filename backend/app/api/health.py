@@ -29,6 +29,7 @@ class ReadyResponse(BaseModel):
 class ProviderStatusResponse(BaseModel):
     """LLM Provider status overview."""
 
+    active_provider: str | None = None
     primary_provider: str
     fallback_chain: list[str]
     providers: dict[str, dict[str, Any]]
@@ -59,13 +60,16 @@ async def get_ready() -> ReadyResponse:
 async def get_provider_status() -> ProviderStatusResponse:
     """LLM provider connectivity and circuit breaker status."""
     settings = get_settings()
+    from app.api.chat import _AGENT_ENGINE
+    live_router = _AGENT_ENGINE.llm_router
     return ProviderStatusResponse(
+        active_provider=live_router.last_successful_provider,
         primary_provider=settings.llm_provider,
-        fallback_chain=[p for p in settings.fallback_providers_list if p != "mock" or settings.llm_provider == "mock"],
+        fallback_chain=live_router._resolve_fallback_order(),
         providers={
             "mock": {"available": settings.llm_provider == "mock", "type": "rule-based"},
             "gemini": {"available": bool(settings.gemini_api_key), "type": "remote"},
-            "groq": {"available": bool(settings.groq_keys_pool), "type": "remote", "strong_model": settings.groq_model},
+            "groq": {"available": bool(settings.groq_keys_pool), "type": "remote", "strong_model": settings.groq_model, "keys":live_router.groq_pool.get_pool_status()},
             "openrouter": {"available": bool(settings.openrouter_api_key), "type": "remote"},
             "openai_compat": {"available": bool(settings.openai_compat_api_key), "type": "remote"},
         },

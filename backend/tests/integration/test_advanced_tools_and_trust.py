@@ -83,26 +83,24 @@ def test_forecast_tool_mape_and_short_history_refusal() -> None:
 def test_hypothesis_tool_ranks_march_dip() -> None:
     """Verify HypothesisTool generates candidate causes and identifies the March EMEA dip."""
     tool = HypothesisTool()
-    result = tool.investigate_drop(target_period="2024-03", target_region="EMEA")
-
+    import pandas as pd
+    frame = pd.DataFrame([
+        {"order_date":"2024-02-10","region":"EMEA","quantity":10,"unit_price":10,"discount":0},
+        {"order_date":"2024-03-10","region":"EMEA","quantity":2,"unit_price":10,"discount":0},
+    ])
+    result = tool.investigate_drop(df=frame,target_period="2024-03",target_region="EMEA")
     assert result["target_period"] == "2024-03"
-    assert result["target_region"] == "EMEA"
-    assert "EMEA" in result["primary_cause"]
-
+    assert result["revenue_change"] == -80
     ranked = result["ranked_hypotheses"]
-    assert len(ranked) >= 4
-
-    # Top hypothesis must be regional supply disruption with highest explained variance
-    top_cause = ranked[0]
-    assert top_cause["rank"] == 1
-    assert "EMEA" in top_cause["hypothesis"]
-    assert top_cause["explained_variance_ratio"] == 0.84
-    assert top_cause["status"] == "confirmed"
-
-    # Refuted hypothesis (discounting erosion) has low explained variance
-    refuted = [h for h in ranked if h["status"] == "refuted"]
-    assert len(refuted) >= 1
-    assert refuted[0]["explained_variance_ratio"] < 0.10
+    assert len(ranked) == 4
+    assert ranked[0]["rank"] == 1
+    assert ranked[0]["dimension"] == "volume"
+    assert ranked[0]["revenue_effect"] == -80
+    assert ranked[0]["explained_variance_ratio"] == 1
+    assert ranked[0]["status"] == "supported"
+    assert sum(item["revenue_effect"] for item in ranked) == result["revenue_change"]
+    assert all(item["revenue_effect"] == 0 for item in ranked[1:])
+    assert "does not establish" in result["limitation"]
 
 
 def test_dashboard_tool_widgets_use_live_duckdb_data(tmp_path) -> None:

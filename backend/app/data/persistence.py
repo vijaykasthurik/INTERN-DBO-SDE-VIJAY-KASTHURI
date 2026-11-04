@@ -10,7 +10,7 @@ from app.data.quality import QualityAuditor
 from app.db.models import Dataset, DatasetColumn, User
 
 
-def persist_dataset(db: Session, user: User, filename: str, content: bytes, existing: Dataset | None = None) -> Dataset:
+def persist_dataset(db: Session, user: User, filename: str, content: bytes, existing: Dataset | None = None, source_filename: str | None = None) -> Dataset:
     pipeline = DataIngestionPipeline()
     if existing is None:
         existing = db.query(Dataset).filter(Dataset.user_id == user.id, Dataset.name == filename).first()
@@ -29,6 +29,7 @@ def persist_dataset(db: Session, user: User, filename: str, content: bytes, exis
             db.delete(column)
         for metric in list(existing.metrics):
             db.delete(metric)
+    dataset.source_filename = source_filename or dataset.source_filename or filename
     db.add(dataset)
     dataset.row_count = result["row_count"]
     dataset.column_count = result["column_count"]

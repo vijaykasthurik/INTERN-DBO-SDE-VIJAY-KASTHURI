@@ -34,6 +34,9 @@ def init_db() -> None:
             user_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
             if user_columns and "allow_shared_fallback" not in user_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN allow_shared_fallback BOOLEAN DEFAULT 1"))
+            dataset_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(datasets)"))]
+            if dataset_columns and "source_filename" not in dataset_columns:
+                conn.execute(text("ALTER TABLE datasets ADD COLUMN source_filename VARCHAR(255) NOT NULL DEFAULT ''"))
             report_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(report_artifacts)"))]
             if report_columns and "source_dataset_ids" not in report_columns:
                 conn.execute(text("ALTER TABLE report_artifacts ADD COLUMN source_dataset_ids JSON NOT NULL DEFAULT '[]'"))

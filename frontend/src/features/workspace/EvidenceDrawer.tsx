@@ -28,7 +28,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
-  const [runResult, setRunResult] = useState<Awaited<ReturnType<typeof api.chat.executeSQL>> | null>(null);
+  const [runResult, setRunResult] = useState<{columns:string[];rows:Array<Record<string,unknown>>;row_count:number;runtime_ms:number} | null>(null);
 
   const handleCopy = async (text:string) => {
     setRunError(null);

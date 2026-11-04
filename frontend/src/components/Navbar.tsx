@@ -11,6 +11,7 @@ import {
   User as UserIcon,
   ChevronDown,
 } from "lucide-react";
+import { api } from "../lib/api";
 import { Wordmark } from "./Wordmark";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../stores/authStore";
@@ -25,6 +26,8 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const { user, logout, isAuthenticated } = useAuthStore();
   const { connection, fetchConnection, openConnectModal } = useAIConnectionStore();
+  const [providerMode,setProviderMode]=useState<string|null>(null);
+  useEffect(()=>{if(isAuthenticated)api.admin.providers().then(status=>setProviderMode(status.primary_provider)).catch(()=>setProviderMode(null));},[isAuthenticated]);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -162,7 +165,7 @@ export const Navbar: React.FC = () => {
               <span className="text-[11px] text-ink font-medium">
                 {connection?.connected
                   ? connection.provider_id?.toUpperCase()
-                  : "Shared AI"}
+                  : (providerMode === "mock" ? "Offline demo mode" : providerMode ? "Shared AI" : "AI unavailable")}
               </span>
             </button>
           )}

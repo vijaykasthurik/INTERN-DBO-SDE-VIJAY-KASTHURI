@@ -26,7 +26,7 @@ def redact(val: str | None) -> str:
         return "[NOT CONFIGURED]"
     if len(val) <= 8:
         return "***"
-    return f"...{val[-4:]}"
+    return "[CONFIGURED]"
 
 
 async def probe_groq_key(key: str, index: int, strong_model: str, fast_model: str | None = None) -> bool:
@@ -42,7 +42,7 @@ async def probe_groq_key(key: str, index: int, strong_model: str, fast_model: st
         return True
     except Exception as exc:
         dt = (time.perf_counter() - t0) * 1000.0
-        safe_msg = str(exc).encode("ascii", "backslashreplace").decode("ascii")
+        safe_msg = type(exc).__name__
         print(f"[DEGRADED] Groq Key #{index:2d} (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Error: {safe_msg}")
         return False
 
@@ -57,7 +57,7 @@ async def probe_zai(key: str, model: str = "glm-4") -> bool:
         return True
     except Exception as exc:
         dt = (time.perf_counter() - t0) * 1000.0
-        safe_msg = str(exc).encode("ascii", "backslashreplace").decode("ascii")
+        safe_msg = type(exc).__name__
         print(f"[DEGRADED] Z.AI (GLM-4)     (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Error: {safe_msg}")
         return False
 
@@ -72,7 +72,7 @@ async def probe_huggingface(key: str, model: str = "Qwen/Qwen2.5-7B-Instruct") -
         return True
     except Exception as exc:
         dt = (time.perf_counter() - t0) * 1000.0
-        safe_msg = str(exc).encode("ascii", "backslashreplace").decode("ascii")
+        safe_msg = type(exc).__name__
         print(f"[DEGRADED] Hugging Face     (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Error: {safe_msg}")
         return False
 

@@ -48,18 +48,18 @@ async def upload_datasets(
     uploaded_list: list[UploadedDatasetInfo] = []
 
     errors: list[dict[str, str]] = []
-    prepared: list[tuple[str, bytes]] = []
+    prepared: list[tuple[str, bytes, str]] = []
     for file in files:
         filename = file.filename or "dataset.csv"
         try:
-            prepared.extend(expand_upload(filename, await file.read(), get_settings().max_upload_mb))
+            prepared.extend((name,content,filename) for name,content in expand_upload(filename, await file.read(), get_settings().max_upload_mb))
         except ValidationError as exc:
             errors.append({"file": filename, "error": str(exc)})
 
-    for filename, content_bytes in prepared:
+    for filename, content_bytes, source_filename in prepared:
 
         try:
-            dataset = persist_dataset(db, user, filename, content_bytes)
+            dataset = persist_dataset(db, user, filename, content_bytes, source_filename=source_filename)
         except ValidationError as exc:
             db.rollback()
             errors.append({"file": filename, "error": str(exc)})

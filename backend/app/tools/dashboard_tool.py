@@ -16,12 +16,16 @@ class DashboardTool:
         data_summary: dict[str, Any] | None = None,
         db_path: str | None = None,
         scope_table: str | None = None,
+        scope_tables: list[str] | None = None,
+        source_names: dict[str,str] | None = None,
     ) -> dict[str, Any]:
         if not db_path or not os.path.exists(db_path):
             raise ValueError("Upload a dataset before generating a dashboard.")
         con = duckdb.connect(db_path, read_only=True)
         try:
             tables = [str(row[0]) for row in con.execute("SHOW TABLES").fetchall()]
+            if scope_tables is not None:
+                tables = [table for table in tables if table in scope_tables]
             if scope_table:
                 if scope_table not in tables:
                     raise ValueError("The selected dataset is no longer available.")
@@ -65,6 +69,7 @@ class DashboardTool:
         finally:
             con.close()
 
+        source_count = len({(source_names or {}).get(table,table) for table in tables})
         widgets: list[dict[str, Any]] = []
         if len(table_summaries) == 1:
             item = table_summaries[0]
@@ -75,6 +80,11 @@ class DashboardTool:
                 if values:
                     widgets.append({"id": "w_trend", "title": f"{item['measure']} by {item['dates'][0] if item.get('trend') else item['categories'][0]}", "type": "chart_line" if item.get("trend") else "chart_pie", "data": {"x_axis": [v["name"] for v in values], "series": [v["value"] for v in values], "slices": values, "annotation": "Computed from the selected dataset.", "sql": item["trend_sql"], "row_count": len(values)}})
             widgets.append({"id": "w_schema", "title": "Dataset schema", "type": "alert_panel", "data": {"alerts_count": 0, "items": [], "annotation": f"Live profile: {item['row_count']:,} rows and {len(item['columns'])} columns. No anomaly scan was run."}})
+            if "measure_total" in item:
+                widgets = [widget for widget in widgets if widget["id"] != "w_rows"]
+                for widget in widgets:
+                    if widget["id"] == "w_total":
+                        widget["data"]["comparison"] = f"{item['row_count']:,} rows; {len(item['columns'])} columns"
             from app.data.quality import QualityAuditor
             from app.tools.anomaly_tool import AnomalyTool
             quality = QualityAuditor().evaluate_table_quality(db_path, item["table"])
@@ -101,8 +111,8 @@ class DashboardTool:
                 con.close()
             scope_label = item["table"]
         else:
-            widgets.append({"id": "w_tables", "title": "Files analyzed", "type": "kpi_card", "data": {"primary_value": f"{len(table_summaries)} files", "numeric_val": len(table_summaries), "comparison": "Live summaries from each uploaded file", "row_count": 1, "sql": "SHOW TABLES"}})
-            widgets.append({"id": "w_rows", "title": "Rows by file", "type": "chart_pie", "data": {"slices": [{"name": t["table"], "value": t["row_count"]} for t in table_summaries], "sql": ";\n".join(f'SELECT COUNT(*) AS row_count FROM "{t["table"]}"' for t in table_summaries), "row_count": len(table_summaries)}})
+            widgets.append({"id": "w_tables", "title": "Files analyzed", "type": "kpi_card", "data": {"primary_value": f"{source_count} files", "numeric_val": source_count, "comparison": "Live summaries from each uploaded file", "row_count": 1, "sql": "SHOW TABLES"}})
+            widgets.append({"id": "w_rows", "title": "Rows by table", "type": "chart_pie", "data": {"slices": [{"name": t["table"], "value": t["row_count"]} for t in table_summaries], "sql": ";\n".join(f'SELECT COUNT(*) AS row_count FROM "{t["table"]}"' for t in table_summaries), "row_count": len(table_summaries)}})
             widgets.append({"id": "w_summary", "title": "Side-by-side file summaries", "type": "alert_panel", "data": {"alerts_count": 0, "items": [{"id": t["table"], "severity": "info", "detail": f"{t['row_count']:,} rows · {len(t['columns'])} columns"} for t in table_summaries], "sql": ";\n".join(f'DESCRIBE "{t["table"]}"; SELECT COUNT(*) AS row_count FROM "{t["table"]}"' for t in table_summaries), "annotation": "Files are summarized side by side because no verified join was applied."}})
             measures = [t for t in table_summaries if "measure_total" in t]
             if measures:

@@ -101,6 +101,8 @@ class LLMRouter(LLMProvider):
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
+        self.usage_by_analysis: dict[str, list[dict[str, Any]]] = {}
+        self.last_successful_provider: str | None = None
 
         # Shared key pool
         self.groq_pool = GroqKeyPool()

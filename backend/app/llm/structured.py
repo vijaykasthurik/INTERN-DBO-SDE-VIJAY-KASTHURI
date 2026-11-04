@@ -54,6 +54,13 @@ async def complete_json(router: LLMRouter, prompt: str, schema: type[T], **argum
         response = await router.complete(messages=messages, json_schema=schema.model_json_schema(), tier="strong", **arguments)
         if not isinstance(response, LLMResponse):
             raise TypeError("Expected a non-streaming completion.")
+        if isinstance(router,LLMRouter):
+            analysis_id = arguments.get("analysis_id")
+            router.last_successful_provider = response.provider
+            if isinstance(analysis_id,str):
+                router.usage_by_analysis.setdefault(analysis_id,[]).append({"provider":response.provider,"model":response.model,"prompt_tokens":response.prompt_tokens,"completion_tokens":response.completion_tokens,"latency_ms":response.latency_ms,"cost_usd":response.cost_usd})
+                if len(router.usage_by_analysis) > 1000:
+                    router.usage_by_analysis.pop(next(iter(router.usage_by_analysis)))
         try:
             return schema.model_validate(parse_json_object(response.content))
         except (ValueError, ValidationError) as exc:

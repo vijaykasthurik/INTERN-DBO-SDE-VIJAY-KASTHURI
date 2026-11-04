@@ -29,6 +29,7 @@ class ColumnDetail(BaseModel):
 class DatasetDetailResponse(BaseModel):
     id: int
     name: str
+    source_filename: str = ""
     table_name: str
     row_count: int
     column_count: int
@@ -89,6 +90,7 @@ async def list_datasets(
             DatasetDetailResponse(
                 id=d.id,
                 name=d.name,
+            source_filename=d.source_filename or d.name,
                 table_name=d.duckdb_table_name,
                 row_count=d.row_count,
                 column_count=d.column_count,
@@ -148,6 +150,7 @@ async def get_dataset(
     return DatasetDetailResponse(
         id=dataset.id,
         name=dataset.name,
+        source_filename=dataset.source_filename or dataset.name,
         table_name=dataset.duckdb_table_name,
         row_count=dataset.row_count,
         column_count=dataset.column_count,

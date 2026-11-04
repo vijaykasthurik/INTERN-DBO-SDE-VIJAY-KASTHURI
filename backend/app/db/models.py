@@ -68,6 +68,7 @@ class Dataset(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_filename: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     duckdb_table_name: Mapped[str] = mapped_column(String(128), nullable=False)
     row_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     column_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

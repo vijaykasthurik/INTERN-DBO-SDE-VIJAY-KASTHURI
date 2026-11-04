@@ -225,9 +225,12 @@ class StepExecutor:
                         break
 
                     elif step.tool == "hypothesis_tool":
-                        target_period = step.parameters.get("target_period", "2024-03")
-                        target_region = step.parameters.get("target_region", "EMEA")
-                        res = tool_instance.investigate_drop(target_period=target_period, target_region=target_region)
+                        target_period = step.parameters.get("target_period")
+                        target_region = step.parameters.get("target_region")
+                        from app.tools.pandas_tool import PandasTool
+                        sql_tool = self.tools_registry["sql_tool"]
+                        frames = PandasTool.load_dataframes(sql_tool.db_path, sorted(sql_tool.validator.allowed_tables or []))
+                        res = tool_instance.investigate_drop(df=frames["df"],target_period=target_period,target_region=target_region)
                         result_preview = res
                         row_count = len(res.get("ranked_hypotheses", res.get("candidates", [])))
                         code = f"tool.investigate_drop(target_period='{target_period}', target_region='{target_region}')"
