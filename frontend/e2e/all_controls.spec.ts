@@ -71,7 +71,8 @@ test.describe("Full Application Control & Interaction Suite", () => {
       path.join(sampleDir, "products.csv"),
     ]);
 
-    // Upload auto-navigates to /dashboards
+    await expect(page.getByText("Data Health Score").first()).toBeVisible({ timeout: 25000 });
+    await page.goto("/dashboards");
     await expect(page.getByText("Files analyzed")).toBeVisible({ timeout: 25000 });
 
     // --- DASHBOARDS PAGE ---

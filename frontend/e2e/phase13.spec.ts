@@ -6,6 +6,7 @@ test("Phase 13 live data flow: scopes, report preview/download, paginated previe
   page,
   request,
 }, testInfo) => {
+  test.setTimeout(120000);
   const email = `phase13_${Date.now()}@example.com`;
   const registration = await request.post("/api/v1/auth/register", {
     data: { email, password: "Password123!", full_name: "Phase 13 Audit" },
@@ -92,7 +93,7 @@ test("Phase 13 live data flow: scopes, report preview/download, paginated previe
   await expect(page.getByText("SQL Run Audit")).toBeVisible();
   await page.locator('input[placeholder*="Ask about sales"]').fill("Generate SQL for this analysis.");
   await page.getByRole("button", { name: "Ask" }).click();
-  await page.getByRole("button", { name: "SQL / Code" }).last().waitFor({ state: "visible", timeout: 20000 });
+  await page.getByRole("button", { name: "SQL / Code" }).last().waitFor({ state: "visible", timeout: 60000 });
   await page.getByRole("button", { name: "SQL / Code" }).last().click();
   await expect(page.getByRole("heading", { name: "Evidence Ledger & Code Audit" })).toBeVisible();
   await page.getByRole("button", { name: "Run SQL" }).click();

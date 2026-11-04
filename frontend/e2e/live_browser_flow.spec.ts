@@ -41,7 +41,11 @@ test("Live end-to-end analytical workflow with multi-file CSV, XLSX, charts, SQL
     path.join(sampleDir, "products.xlsx"),
   ]);
 
-  // Ingestion redirects to /dashboards
+  // Wait for upload and profiling to complete
+  await expect(page.getByText("Data Health Score").first()).toBeVisible({ timeout: 25000 });
+
+  // Navigate to dashboards to inspect auto-generated canvas
+  await page.goto("/dashboards");
   await expect(page.getByText("Files analyzed")).toBeVisible({ timeout: 25000 });
   await page.screenshot({ path: path.join(mediaDir, "01_dashboards_generated.png") });
 

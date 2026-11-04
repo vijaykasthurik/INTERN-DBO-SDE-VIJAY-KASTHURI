@@ -6,10 +6,14 @@ test.describe("Dashboards, Reports, Settings, Command Palette & 404 E2E", () => 
     const regRes = await request.post("/api/v1/auth/register", {
       data: { email: testEmail, password: "PassWord123!", full_name: "DRS Tester" },
     });
-    if (regRes.ok()) {
-      const { access_token: token } = await regRes.json();
-      await page.addInitScript((val: string) => localStorage.setItem("lumen_access_token", val), token);
-    }
+    expect(regRes.ok()).toBeTruthy();
+
+    const loginRes = await request.post("/api/v1/auth/login", {
+      data: { email: testEmail, password: "PassWord123!" },
+    });
+    expect(loginRes.ok()).toBeTruthy();
+    const { access_token: token } = await loginRes.json();
+    await page.addInitScript((val: string) => localStorage.setItem("lumen_access_token", val), token);
   });
 
   test("dashboards: empty state and live generation error without uploaded data", async ({ page }) => {

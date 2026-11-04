@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -23,7 +22,6 @@ import { useDatasetStore } from "../stores/datasetStore";
 import { UploadSummaryCard } from "../components/UploadSummaryCard";
 
 export const DatasetsPage: React.FC = () => {
-  const navigate = useNavigate();
   const [fileProgress,setFileProgress] = useState<Record<string,number>>({});
   const {
     datasets,
@@ -78,7 +76,6 @@ export const DatasetsPage: React.FC = () => {
         progress[name]=percent; setFileProgress({...progress});
         setUploadProgress(Math.round(Object.values(progress).reduce((sum,value)=>sum+value,0)/validFiles.length));
       });
-      navigate("/dashboards", {state:{uploadWarnings:useDatasetStore.getState().uploadWarnings}});
     } catch(err:unknown) {
       setUploadError(err instanceof Error?err.message:"Upload failed");
     } finally { setUploadProgress(null); }

@@ -81,7 +81,7 @@ class DashboardTool:
                     widgets.append({"id": "w_trend", "title": f"{item['measure']} by {item['dates'][0] if item.get('trend') else item['categories'][0]}", "type": "chart_line" if item.get("trend") else "chart_pie", "data": {"x_axis": [v["name"] for v in values], "series": [v["value"] for v in values], "slices": values, "annotation": "Computed from the selected dataset.", "sql": item["trend_sql"], "row_count": len(values)}})
             widgets.append({"id": "w_schema", "title": "Dataset schema", "type": "alert_panel", "data": {"alerts_count": 0, "items": [], "annotation": f"Live profile: {item['row_count']:,} rows and {len(item['columns'])} columns. No anomaly scan was run."}})
             if "measure_total" in item:
-                widgets = [widget for widget in widgets if widget["id"] != "w_rows"]
+                # keep w_rows
                 for widget in widgets:
                     if widget["id"] == "w_total":
                         widget["data"]["comparison"] = f"{item['row_count']:,} rows; {len(item['columns'])} columns"

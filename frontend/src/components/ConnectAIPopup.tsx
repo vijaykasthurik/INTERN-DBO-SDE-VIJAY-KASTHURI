@@ -177,7 +177,7 @@ export const ConnectAIPopup: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-serif text-lg font-medium text-ink tracking-tight">
-                  Connect a Model
+                  Connect your AI
                 </h3>
                 <p className="text-xs text-ink-muted">
                   Bring your own API key for unlimited queries, or rely on shared fallback models.
