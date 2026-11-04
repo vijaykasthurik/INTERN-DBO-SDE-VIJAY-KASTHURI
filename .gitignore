@@ -18,8 +18,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
+!frontend/src/lib/
 parts/
 sdist/
 var/
@@ -60,7 +61,9 @@ frontend/build/
 .turbo/
 
 # Data and SQLite/DuckDB databases
-data/
+/data/
+/backend/data/
+!backend/app/data/
 *.db
 *.sqlite
 *.sqlite3
