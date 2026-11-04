@@ -35,6 +35,17 @@ class IntentRouter:
         """Route user query using deterministic keyword parsing and heuristic intent mapping."""
         q = question.strip().lower()
 
+        # 2. Code generation requests
+        if re.search(
+            r"\b(generate\s+sql|show\s+sql|write\s+sql|sql\s+query|pandas\s+code|give\s+me\s+sql)\b",
+            q,
+        ):
+            return RouteDecision(
+                lane="code_request",
+                confidence=0.98,
+                reason="User explicitly requested SQL or Pandas code generation.",
+            )
+
         if "what is in" in q or "explain each" in q or re.search(r"describe.*(files|tables|datasets)",q):
             return RouteDecision(lane="dataset_overview", confidence=1.0, reason="Inspect current uploaded table profiles and relationships.")
 
@@ -64,17 +75,6 @@ class IntentRouter:
                     "Underperforming products",
                     "Top 5 customers by spend",
                 ],
-            )
-
-        # 2. Code generation requests
-        if re.search(
-            r"\b(generate\s+sql|show\s+sql|write\s+sql|sql\s+query|pandas\s+code|give\s+me\s+sql)\b",
-            q,
-        ):
-            return RouteDecision(
-                lane="code_request",
-                confidence=0.98,
-                reason="User explicitly requested SQL or Pandas code generation.",
             )
 
         # 3. Anomaly detection

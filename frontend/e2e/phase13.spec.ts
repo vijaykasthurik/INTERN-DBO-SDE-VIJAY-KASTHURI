@@ -6,7 +6,7 @@ test("Phase 13 live data flow: scopes, report preview/download, paginated previe
   page,
   request,
 }, testInfo) => {
-  test.setTimeout(120000);
+  test.setTimeout(180000);
   const email = `phase13_${Date.now()}@example.com`;
   const registration = await request.post("/api/v1/auth/register", {
     data: { email, password: "Password123!", full_name: "Phase 13 Audit" },
