@@ -4,9 +4,11 @@ Non-Negotiable Principle P1: The LLM NEVER computes or invents numbers.
 Every number in the final narrative must exist within this ledger.
 """
 
+import math
+import re
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LedgerEntry(BaseModel):
@@ -22,11 +24,10 @@ class LedgerEntry(BaseModel):
     error: str | None = None
 
 
-class EvidenceLedger:
-    """Manages the verifiable ledger for a single question-answering workflow."""
+class EvidenceLedger(BaseModel):
+    """Manages the verifiable ledger for a single analytical question workflow."""
 
-    def __init__(self) -> None:
-        self.entries: list[LedgerEntry] = []
+    entries: list[LedgerEntry] = Field(default_factory=list)
 
     def record_step(
         self,
@@ -53,8 +54,42 @@ class EvidenceLedger:
         self.entries.append(entry)
         return entry
 
-    def get_all_numbers(self) -> list[float]:
-        """Extract all numerical values present across all ledger step results."""
-        numbers: list[float] = []
-        # Traversal logic for grounding verification
+    def get_all_numbers(self) -> set[float]:
+        """Extract all numerical values present across all ledger entries."""
+        numbers: set[float] = set()
+
+        def _extract_recursive(val: Any) -> None:
+            if isinstance(val, (int, float)):
+                if not math.isnan(val) and not math.isinf(val):
+                    numbers.add(round(float(val), 2))
+            elif isinstance(val, dict):
+                for k, v in val.items():
+                    _extract_recursive(k)
+                    _extract_recursive(v)
+            elif isinstance(val, (list, tuple, set)):
+                for item in val:
+                    _extract_recursive(item)
+            elif isinstance(val, str):
+                # Search for formatted numbers like "$1,482,900.00" or "34.2%" or "1820"
+                matches = re.findall(r"[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+", val)
+                for m in matches:
+                    clean_str = m.replace(",", "")
+                    try:
+                        f_val = float(clean_str)
+                        numbers.add(round(f_val, 2))
+                    except ValueError:
+                        pass
+
+        for entry in self.entries:
+            _extract_recursive(entry.result_preview)
+            numbers.add(round(float(entry.row_count), 2))
+
         return numbers
+
+    def is_number_grounded(self, num: float, tolerance: float = 0.05) -> bool:
+        """Verify whether a proposed number exists in the ledger within tolerance."""
+        all_nums = self.get_all_numbers()
+        for known in all_nums:
+            if math.isclose(known, num, rel_tol=tolerance, abs_tol=tolerance):
+                return True
+        return False

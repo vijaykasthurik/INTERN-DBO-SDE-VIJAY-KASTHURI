@@ -12,7 +12,7 @@ lint:
 	cd frontend && npm run lint
 
 test:
-	powershell -Command "cd backend; ..\.venv\Scripts\python.exe -m pytest tests/unit"
+	powershell -Command "cd backend; ..\.venv\Scripts\python.exe -m pytest tests"
 	cd frontend && npm run test
 
 typecheck:

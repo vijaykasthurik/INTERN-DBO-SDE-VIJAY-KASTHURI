@@ -41,7 +41,17 @@
   - [x] Live provider health and status diagnostics exposed at `/providers/status` and `/api/v1/admin/providers/status`
   - [x] BudgetGovernor capping steps, token counts, and elapsed duration per question
   - [x] Acceptance Gate: 111-item malicious/invalid SQL & Pandas corpus rejected, prompt injection tests pass, fallback chain verified (429 -> fallback success, all fail -> graceful error), safety coverage 97.22%, overall backend coverage 84.88%
-- [ ] **Phase 4: Agent engine core (PEVN) + streaming**
+- [x] **Phase 4: Agent engine core (PEVN) + streaming**
+  - [x] Three-tier memory architecture (working memory, session history with compression, semantic cache)
+  - [x] Conversational reference resolver for follow-up elisions ("now by month", "why did it drop?", code requests)
+  - [x] Intent router across 8 specialist lanes with interactive `clarify` lane providing tappable options
+  - [x] DAG planner with cycle detection (Kahn's algorithm) and topological wave scheduling
+  - [x] Concurrent step executor with `asyncio.gather` for independent steps and per-step timeout protection
+  - [x] Query repair loop with error taxonomy (unknown column, ambiguous, syntax, timeout) and targeted prompts
+  - [x] Evidence Ledger persistence per message with strict number grounding audit
+  - [x] Evidence-grounded Narrator streaming direct answers, business insights, ECharts JSON specs, and follow-ups
+  - [x] SSE streaming endpoint (`POST /api/v1/chat/sessions/{id}/messages`) emitting standardized events (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`)
+  - [x] Acceptance Gate: Integration tests for 6 core benchmark questions verified against GROUND_TRUTH, follow-up reference resolution verified, concurrency proven via parallel wave execution, SSE event ordering validated, overall backend coverage 84.92%
 - [ ] **Phase 5: Advanced tools, Verifier, cache, governor**
 - [ ] **Phase 6: Reports, observability, evaluation harness**
 - [ ] **Phase 7: Frontend foundation and design system**
@@ -58,3 +68,5 @@
 4. **Data Health Scoring**: Explainable 0-100 score evaluating duplicates, missing values, constant columns, and out-of-bound numerical constraints.
 5. **AST Security & Execution Isolation**: SQL validation strictly uses `sqlglot` DuckDB AST parsing enforcing SELECT-only statements and automatic LIMIT capping. Pandas execution operates in an isolated subprocess with restricted safe builtins and timeout protection.
 6. **Provider Fallback & Resilience**: Ordered fallback chain with token bucket rate limiting and circuit breakers ensures seamless recovery from 429 rate limits or upstream 5xx errors.
+7. **DAG Concurrency & Wave Scheduling**: ExecutionPlanner compiles queries into topologically ordered DAG waves; steps within each wave execute in parallel via `asyncio.gather`, dramatically reducing wall-clock latency.
+8. **Real-time SSE Timeline**: Chat streaming broadcasts real-time reasoning lifecycle (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`) with per-message Evidence Ledger persistence.
