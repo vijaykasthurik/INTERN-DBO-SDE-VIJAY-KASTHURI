@@ -1,6 +1,7 @@
+import { Wordmark } from "../components/Wordmark";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Sparkles,
   ArrowRight,
@@ -15,25 +16,26 @@ import {
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
-import { cn } from "../lib/utils";
 
 export const LandingPage: React.FC = () => {
   // Mini-demo animation cycle: 0 = Question typing, 1 = Plan DAG, 2 = Execution, 3 = Chart + Insight
+  const reducedMotion = useReducedMotion();
   const [demoStep, setDemoStep] = useState(0);
 
   useEffect(() => {
+    if (reducedMotion) return;
     const timer = setInterval(() => {
       setDemoStep((prev) => (prev + 1) % 4);
     }, 3800);
     return () => clearInterval(timer);
-  }, []);
+  }, [reducedMotion]);
 
   const features = [
     {
       icon: ShieldCheck,
       title: "Evidence Ledger Verification",
       description:
-        "The LLM never computes or hallucinates numbers. Every metric is ground-checked against DuckDB before reaching your screen.",
+        "DuckDB and Python compute analytical results. A separate verifier checks numerical claims against the recorded evidence.",
     },
     {
       icon: Zap,
@@ -51,7 +53,7 @@ export const LandingPage: React.FC = () => {
       icon: Search,
       title: "Root-Cause Hypothesis Engine",
       description:
-        "Ask 'Why did EMEA revenue drop?' and Lumen tests candidate dimensions by explained variance ratio to deliver the exact cause.",
+        "Ask why a metric changed and inspect candidate explanations against the computed evidence.",
     },
     {
       icon: Cpu,
@@ -159,7 +161,7 @@ export const LandingPage: React.FC = () => {
               <div className="w-3 h-3 rounded-full bg-rose-400" />
               <div className="w-3 h-3 rounded-full bg-amber-400" />
               <div className="w-3 h-3 rounded-full bg-emerald-400" />
-              <span className="text-xs text-ink-muted font-mono ml-2">lumen://session-emea-analysis</span>
+              <span className="text-xs text-ink-muted font-mono ml-2">Product workflow preview</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={demoStep === 3 ? "success" : "neutral"} size="sm">
@@ -230,7 +232,7 @@ export const LandingPage: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider">DuckDB Execution & Verifier</p>
-                    <span className="text-[11px] font-mono text-emerald-600 font-medium">Runtime: 12.4ms • 0 Fan-out</span>
+                    <span className="text-[11px] font-mono text-emerald-600 font-medium">Runtime and join checks appear after execution</span>
                   </div>
                   <div className="p-3 bg-slate-900 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto">
                     <code>
@@ -239,7 +241,7 @@ export const LandingPage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-ink font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span>Skeptic Verifier: 100% Number Grounding Confirmed (Confidence: High)</span>
+                    <span>Review the recorded verification checks and confidence</span>
                   </div>
                 </motion.div>
               )}
@@ -257,32 +259,16 @@ export const LandingPage: React.FC = () => {
                       <div>
                         <span className="text-xs font-bold text-accent-indigo uppercase tracking-wider">Executive Finding</span>
                         <h4 className="text-base font-semibold text-ink mt-1">
-                          EMEA Hardware Dip Isolated: -48.2% in March 2024
+                          Inspect the answer and its evidence
                         </h4>
                       </div>
-                      <Badge variant="success">High Confidence</Badge>
+                      <Badge variant="success">Recorded confidence</Badge>
                     </div>
                     <p className="text-xs text-ink-muted mt-2 leading-relaxed">
-                      Revenue dipped from $2,180,000 in Feb to $1,128,400 in March 2024. Hypothesis testing shows regional supplier bottlenecks in EMEA accounted for 84.1% of the total variance.
+                      After running your query, review its computed results, executed SQL and verification notes. Export your analysis when you are ready.
                     </p>
-                    {/* Simulated SVG Sparkline Chart */}
-                    <div className="mt-4 pt-3 border-t border-hairline flex items-end gap-3 h-20">
-                      {[65, 80, 92, 45, 88, 95].map((val, idx) => (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                          <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: `${val}%` }}
-                            transition={{ duration: 0.5, delay: idx * 0.08 }}
-                            className={cn(
-                              "w-full rounded-t-md",
-                              idx === 3 ? "bg-rose-500" : "bg-accent-indigo"
-                            )}
-                          />
-                          <span className="text-[9px] font-mono text-ink-muted">
-                            {["Jan", "Feb", "Mar", "Apr", "May", "Jun"][idx]}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="mt-4 pt-3 border-t border-hairline flex flex-wrap gap-3 text-xs text-ink-muted">
+                      <span>Computed result</span><span>Executed query</span><span>Evidence ledger</span>
                     </div>
                   </div>
                 </motion.div>
@@ -299,7 +285,7 @@ export const LandingPage: React.FC = () => {
             Engineered Trust
           </p>
           <h2 className="text-3xl sm:text-4xl font-serif text-ink tracking-tight font-medium">
-            How Lumen guarantees mathematical certainty
+            How Lumen makes analysis inspectable
           </h2>
         </div>
 
@@ -359,10 +345,7 @@ export const LandingPage: React.FC = () => {
       {/* FOOTER */}
       <footer className="max-w-6xl mx-auto px-4 sm:px-6 mt-32 pt-8 border-t border-hairline flex flex-col sm:flex-row items-center justify-between text-xs text-ink-muted gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-pill bg-accent-gradient flex items-center justify-center text-white text-[10px]">
-            <Sparkles className="w-3 h-3" />
-          </div>
-          <span className="font-serif text-base text-ink font-medium">Lumen</span>
+          <Wordmark />
           <span>© 2026 Lumen AI. All rights reserved.</span>
         </div>
         <div className="flex items-center space-x-6">

@@ -7,11 +7,11 @@ import {
   LayoutDashboard,
   FileText,
   Settings,
-  Sparkles,
   LogOut,
   User as UserIcon,
   ChevronDown,
 } from "lucide-react";
+import { Wordmark } from "./Wordmark";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../stores/authStore";
 import { useAIConnectionStore } from "../stores/aiConnectionStore";
@@ -63,12 +63,7 @@ export const Navbar: React.FC = () => {
       {/* MOBILE TOP HEADER */}
       <header className="fixed top-0 inset-x-0 z-40 md:hidden bg-white/80 backdrop-blur-md border-b border-hairline py-2.5 px-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-pill bg-accent-gradient flex items-center justify-center text-white shadow-soft-xs">
-            <Sparkles className="w-3.5 h-3.5" />
-          </div>
-          <span className="font-serif text-lg tracking-tight font-medium text-ink">
-            Lumen
-          </span>
+          <Wordmark />
         </Link>
         {!isAuthenticated && (
           <Link
@@ -105,12 +100,7 @@ export const Navbar: React.FC = () => {
             to="/"
             className="flex items-center gap-2 pr-4 mr-2 border-r border-hairline group"
           >
-            <div className="w-8 h-8 rounded-pill bg-accent-gradient flex items-center justify-center text-white shadow-soft-xs group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <span className="font-serif text-xl tracking-tight font-medium text-ink">
-              Lumen
-            </span>
+            <Wordmark />
           </Link>
 
           {/* NAV LINKS WITH GLIDING ACTIVE INDICATOR */}

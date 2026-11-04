@@ -20,6 +20,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    contact_email: str = Field(default="", alias="CONTACT_EMAIL")
+    smtp_host: str = Field(default="", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_user: str = Field(default="", alias="SMTP_USER")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_from: str = Field(default="", alias="SMTP_FROM")
+
     # Core App
     app_env: str = Field(default="development", alias="APP_ENV")
     app_name: str = Field(default="Lumen AI Data Analyst", alias="APP_NAME")

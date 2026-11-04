@@ -172,3 +172,6 @@ Confirm live configuration without credential output; wire relationship-backed d
 2. Fix only missing/broken public, branding, data, agent and control behavior in the latest numbered order, preserving working UI and owner changes.
 3. Add targeted regression coverage, run live and offline gates, refresh docs/media, clean-clone and secret scans; push each stage; tag only on complete verified success.
 Initial worktree is clean at 98ed092. Prior verification claims are historical, not proof of this pass.
+
+### Completion Step 1 implemented
+Added missing public workflow/About/Contact pages and public navbar; wired existing ProtectedRoute on app routes. Added contact persistence, honeypot, five-per-hour IP limit and optional TLS SMTP; successful UI says received, never falsely sent. Added custom SVG wordmark/favicons, removed emoji source/doc headings, honored reduced motion globally, and replaced fabricated landing demo figures/runtime with explanatory workflow text while preserving the surrounding layout. Public browser checks cover 375/768/1440 and signed-in public navigation; contact backend regression covers validation/storage/honeypot/rate-limit. Remaining branding includes PDF wordmark; profile mobile overflow remains under review.

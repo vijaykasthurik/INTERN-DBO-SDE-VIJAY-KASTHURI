@@ -6,9 +6,9 @@ import { NAV_VARIANT } from "../components/Navbar.tsx";
 describe("App Component", () => {
   it("renders the brand header and navbar links", () => {
     render(<App />);
-    const lumenElements = screen.getAllByText("Lumen");
+    const lumenElements = screen.getAllByAltText("Lumen");
     expect(lumenElements.length).toBeGreaterThan(0);
-    const workspaceLinks = screen.getAllByText("Workspace");
+    const workspaceLinks = screen.getAllByRole("link", { name: "How it works" });
     expect(workspaceLinks.length).toBeGreaterThan(0);
   });
 
@@ -24,6 +24,6 @@ describe("App Component", () => {
 
   it("renders the mini demo preview with verifier indicator", async () => {
     render(<App />);
-    expect(await screen.findByText(/lumen:\/\/session-emea-analysis/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Product workflow preview/i)).toBeInTheDocument();
   });
 });

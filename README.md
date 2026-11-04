@@ -12,7 +12,7 @@
 
 ---
 
-## 🌟 Interactive Demo & Visual Showcase
+##  Interactive Demo & Visual Showcase
 
 ### Live Demo Video
 ![Lumen Interactive Walkthrough](docs/media/demo/lumen_demo.gif)
@@ -40,7 +40,7 @@
 
 ---
 
-## 💡 Overview & The Lumen Guarantee
+##  Overview & The Lumen Guarantee
 
 Most LLM data assistants hallucinate numbers, miscalculate floating-point aggregates, or execute unverified SQL scripts. **Lumen is engineered differently.**
 
@@ -51,7 +51,7 @@ Lumen strictly enforces three foundational principles:
 
 ---
 
-## 🎯 Requirements & Bonus Features Traceability Matrix
+##  Requirements & Bonus Features Traceability Matrix
 
 Every single assignment requirement and bonus feature is implemented as a first-class production module. See [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) for full audit details:
 
@@ -77,7 +77,7 @@ Every single assignment requirement and bonus feature is implemented as a first-
 
 ---
 
-## 🔑 Bring Your Own Key (BYOK) & Smart Fallback Pool
+##  Bring Your Own Key (BYOK) & Smart Fallback Pool
 
 Lumen features a comprehensive, zero-leakage BYOK architecture allowing reviewers and analysts to connect their preferred AI provider with complete client-side privacy:
 
@@ -95,7 +95,7 @@ Lumen features a comprehensive, zero-leakage BYOK architecture allowing reviewer
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```mermaid
 flowchart TD
@@ -148,7 +148,7 @@ flowchart TD
 
 ---
 
-## 🔬 Core Design & Architectural Decisions
+##  Core Design & Architectural Decisions
 
 1. **Why the LLM Never Computes (Rule P1)**: LLMs are probabilistic language models prone to subtle floating-point arithmetic errors. In enterprise business intelligence, hallucinated numbers are dangerous. Lumen delegates all calculations to DuckDB and Pandas, verifying results via the Evidence Ledger.
 2. **Why the Dual-Pass Verifier (Rule P2)**: To eliminate hallucinations, the verifier extracts all numeric draft tokens and confirms their exact existence in the execution ledger. Unconfirmed numbers are purged. Key aggregates are cross-calculated across both SQL and Pandas engines.
@@ -158,7 +158,7 @@ flowchart TD
 
 ---
 
-## 🛡️ Security Architecture
+##  Security Architecture
 
 - **Read-Only Analytical Database**: User analytical datasets are loaded into dedicated, per-user DuckDB instances (`data/user_warehouses/user_{id}.duckdb`).
 - **SELECT-Only AST Allowlist**: All queries pass through `sqlglot` AST parsing. Statements attempting mutations (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `ATTACH`) immediately trigger a `SecurityViolationError`.
@@ -168,7 +168,7 @@ flowchart TD
 
 ---
 
-## 🚀 Quick Start (Run in 3 Commands)
+##  Quick Start (Run in 3 Commands)
 
 ### Option 1: Local Development
 
@@ -206,7 +206,7 @@ make smoke
 
 ---
 
-## 🧪 Evaluation Benchmark Scorecard (`eval/run_eval.py`)
+##  Evaluation Benchmark Scorecard (`eval/run_eval.py`)
 
 Lumen comes with an automated golden benchmark suite (`eval/golden.yaml`) containing 32 comprehensive business intelligence tests across 9 query archetypes:
 
@@ -237,7 +237,7 @@ Categories evaluated:
 
 ---
 
-## ⚙️ Environment Variables Reference
+##  Environment Variables Reference
 
 Copy `.env.example` to `.env` to configure your environment:
 
@@ -260,7 +260,7 @@ Copy `.env.example` to `.env` to configure your environment:
 
 ---
 
-## 📂 Repository Directory Layout
+##  Repository Directory Layout
 
 ```text
 lumen/
@@ -294,7 +294,7 @@ lumen/
 
 ---
 
-## 🔮 Assumptions & Limitations
+##  Assumptions & Limitations
 
 ### Assumptions
 1. **Delimited Tabular Data**: Input data files are comma- or tab-separated tabular CSV files with consistent column schemas.
@@ -308,5 +308,5 @@ lumen/
 
 ---
 
-## 📜 License
+##  License
 Distributed under the MIT License. See `LICENSE` for more information.

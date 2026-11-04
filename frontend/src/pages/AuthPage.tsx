@@ -9,7 +9,7 @@ import { Tabs } from "../components/ui/Tabs";
 import { useAuthStore } from "../stores/authStore";
 
 export const AuthPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("login");
+  const [activeTab, setActiveTab] = useState<string>(new URLSearchParams(window.location.search).get("mode") === "register" ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -131,7 +131,7 @@ export const AuthPage: React.FC = () => {
               <Input
                 label="Password"
                 type="password"
-                placeholder="••••••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 leftIcon={<Lock className="w-4 h-4 text-ink-muted" />}

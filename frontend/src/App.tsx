@@ -1,8 +1,12 @@
+import { MotionConfig } from "framer-motion";
 import React, { useEffect, Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/ui/Toast";
+import { PublicNavbar } from "./components/PublicNavbar";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AboutPage, ContactPage, WorkflowPage } from "./pages/PublicPages";
 import { Navbar } from "./components/Navbar";
 import { CommandPalette } from "./components/CommandPalette";
 import { ConnectAIPopup } from "./components/ConnectAIPopup";
@@ -62,17 +66,27 @@ const AnimatedRoutes: React.FC = () => {
     <Suspense fallback={<RouteLoadingSkeleton />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/how-it-works" element={<WorkflowPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/workspace" element={<WorkspacePage />} />
-        <Route path="/datasets" element={<DatasetsPage />} />
-        <Route path="/dashboards" element={<DashboardsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/workspace" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
+        <Route path="/datasets" element={<ProtectedRoute><DatasetsPage /></ProtectedRoute>} />
+        <Route path="/dashboards" element={<ProtectedRoute><DashboardsPage /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );
+};
+
+const Navigation = () => {
+  const location = useLocation();
+  const authenticated = useAuthStore((s) => s.isAuthenticated);
+  const publicPage = ["/", "/auth", "/how-it-works", "/about", "/contact"].includes(location.pathname);
+  return publicPage || !authenticated ? <PublicNavbar /> : <Navbar />;
 };
 
 export const App: React.FC = () => {
@@ -83,12 +97,12 @@ export const App: React.FC = () => {
   }, [checkAuth]);
 
   return (
-    <ErrorBoundary>
+    <MotionConfig reducedMotion="user"><ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <BrowserRouter>
             <div className="min-h-screen bg-white font-sans text-ink flex flex-col relative selection:bg-accent-indigo/20">
-              <Navbar />
+              <Navigation />
               <CommandPalette />
               <ConnectAIPopup />
               <main className="flex-1 w-full">
@@ -98,7 +112,7 @@ export const App: React.FC = () => {
           </BrowserRouter>
         </ToastProvider>
       </QueryClientProvider>
-    </ErrorBoundary>
+    </ErrorBoundary></MotionConfig>
   );
 };
 
