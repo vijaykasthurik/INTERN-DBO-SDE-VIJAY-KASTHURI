@@ -72,7 +72,7 @@ class Verifier:
                             if (
                                 ("revenue" in k_lower or "price" in k_lower)
                                 and not any(kw in k_lower for kw in ["growth", "pct", "change", "diff", "delta", "prev"])
-                                and isinstance(col_v, (int, float))
+                                and isinstance(col_v, int | float)
                                 and col_v < -0.01
                             ):
                                 reasons.append(f"Suspicious negative value ({col_v}) found in column '{col_k}'.")
@@ -89,8 +89,8 @@ class Verifier:
         # 2. SQL vs Pandas Cross-Check
         if sql_result is not None and pandas_result is not None:
             try:
-                s_val: float | None = float(sql_result) if not isinstance(sql_result, (dict, list)) else None
-                p_val: float | None = float(pandas_result) if not isinstance(pandas_result, (dict, list)) else None
+                s_val: float | None = float(sql_result) if not isinstance(sql_result, dict | list) else None
+                p_val: float | None = float(pandas_result) if not isinstance(pandas_result, dict | list) else None
                 if s_val is not None and p_val is not None and not math.isclose(s_val, p_val, rel_tol=0.01):
                     cross_check_passed = False
                     reasons.append(

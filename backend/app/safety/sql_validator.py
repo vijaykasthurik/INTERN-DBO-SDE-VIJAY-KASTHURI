@@ -135,7 +135,7 @@ class SQLValidator:
         expr = statements[0]
 
         # Enforce that the root is a SELECT or UNION
-        if not isinstance(expr, (exp.Select, exp.Union)):
+        if not isinstance(expr, exp.Select | exp.Union):
             raise SQLSecurityError(
                 f"Disallowed statement type: {type(expr).__name__}. Only SELECT queries are permitted."
             )

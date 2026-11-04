@@ -17,6 +17,7 @@ ignore = [
     "B008", # do not perform function calls in argument defaults (needed for FastAPI Depends)
     "E501", # line length handled by formatter
     "ARG002", # unused method argument in interfaces
+    "UP038", # isinstance with tuple compatibility
 ]
 
 [tool.ruff.lint.isort]

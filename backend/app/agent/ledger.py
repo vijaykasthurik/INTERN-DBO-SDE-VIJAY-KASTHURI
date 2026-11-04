@@ -59,14 +59,14 @@ class EvidenceLedger(BaseModel):
         numbers: set[float] = set()
 
         def _extract_recursive(val: Any) -> None:
-            if isinstance(val, (int, float)):
+            if isinstance(val, int | float):
                 if not math.isnan(val) and not math.isinf(val):
                     numbers.add(round(float(val), 2))
             elif isinstance(val, dict):
                 for k, v in val.items():
                     _extract_recursive(k)
                     _extract_recursive(v)
-            elif isinstance(val, (list, tuple, set)):
+            elif isinstance(val, list | tuple | set):
                 for item in val:
                     _extract_recursive(item)
             elif isinstance(val, str):

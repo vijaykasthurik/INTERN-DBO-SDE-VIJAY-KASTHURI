@@ -114,7 +114,7 @@ class StepExecutor:
                             None, tool_instance.execute_script, code_str, dataframes
                         )
                         result_preview = res
-                        row_count = len(res) if isinstance(res, (list, dict)) else 1
+                        row_count = len(res) if isinstance(res, list | dict) else 1
                         status = "success"
                         error_msg = None
                         break
