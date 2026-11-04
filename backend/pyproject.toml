@@ -46,12 +46,13 @@ module = [
     "reportlab.*",
     "sqlglot.*",
     "sse_starlette.*",
+    "sklearn.*",
 ]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra -q --cov=app.main --cov=app.config --cov=app.core.logging --cov=app.core.errors --cov=app.api.health --cov=app.observability.metrics --cov-report=term-missing --cov-fail-under=80"
+addopts = "-ra -q --cov=app.main --cov=app.config --cov=app.core --cov=app.api.health --cov=app.api.auth --cov=app.api.upload --cov=app.api.datasets --cov=app.data --cov=app.tools.search_tool --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"

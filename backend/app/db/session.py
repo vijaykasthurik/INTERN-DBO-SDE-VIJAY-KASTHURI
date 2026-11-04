@@ -11,8 +11,12 @@ from app.db.models import Base
 
 settings = get_settings()
 
-# Ensure storage directory exists
-os.makedirs(settings.data_dir, exist_ok=True)
+# Ensure directory exists for local SQLite database
+if settings.database_url.startswith("sqlite"):
+    db_path = settings.database_url.replace("sqlite:///", "")
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
 
 engine = create_engine(
     settings.database_url,

@@ -9,7 +9,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
+from app.api.auth import router as auth_router
+from app.api.datasets import router as datasets_router
 from app.api.health import router as health_router
+from app.api.upload import router as upload_router
 from app.config import get_settings
 from app.core.errors import (
     LumenException,
@@ -17,6 +20,7 @@ from app.core.errors import (
     lumen_exception_handler,
 )
 from app.core.logging import get_logger, setup_logging
+from app.db.session import init_db
 from app.observability.metrics import CONTENT_TYPE_LATEST, get_latest_metrics
 
 logger = get_logger("lumen.main")
@@ -27,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan context manager for startup and shutdown hooks."""
     settings = get_settings()
     setup_logging(settings.log_level)
+    init_db()
     logger.info("Starting Lumen backend", env=settings.app_env, provider=settings.llm_provider)
     yield
     logger.info("Shutting down Lumen backend")
@@ -71,6 +76,9 @@ def create_app() -> FastAPI:
     app.add_exception_handler(Exception, generic_exception_handler)
 
     # Routers
+    app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(upload_router, prefix="/api/v1")
+    app.include_router(datasets_router, prefix="/api/v1")
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(health_router, prefix="")  # Also expose /health, /ready at root
 

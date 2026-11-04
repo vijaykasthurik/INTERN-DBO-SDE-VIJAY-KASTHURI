@@ -8,11 +8,11 @@ setup:
 
 lint:
 	$(PYTHON) -m ruff check backend/app
-	$(PYTHON) -m mypy backend/app
+	$(PYTHON) -m mypy --config-file backend/pyproject.toml backend/app
 	cd frontend && npm run lint
 
 test:
-	powershell -Command "cd backend; ..\.venv\Scripts\python.exe -m pytest tests/unit/test_health.py"
+	powershell -Command "cd backend; ..\.venv\Scripts\python.exe -m pytest tests/unit"
 	cd frontend && npm run test
 
 typecheck:
