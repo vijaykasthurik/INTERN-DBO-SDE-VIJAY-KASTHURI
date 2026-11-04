@@ -72,7 +72,15 @@
   - [x] `eval/golden.yaml` with 32 benchmark questions across 9 categories (easy, join, time-series, ranking, anomaly, investigation, ambiguous, follow-up, adversarial)
   - [x] `eval/run_eval.py` evaluation harness executing against live API and compiling `eval/RESULTS.md` with 100.0% accuracy scorecard
   - [x] Acceptance Gate: PDF & Markdown export verified, /metrics endpoint tested, `make eval` green at 100% accuracy, 162 backend tests passing with 85.12% coverage, tagged `phase-6-complete`
-- [ ] **Phase 7: Frontend foundation and design system**
+- [x] **Phase 7: Frontend foundation and design system**
+  - [x] Strictly token-driven UI primitives built in `src/components/ui`: `Button` (gradient, magnetic hover, ghost, subtle), `Card`, `Input`, `Badge`, `Tooltip`, `Dialog`, `Drawer`, `Tabs`, `Toast` (spring), `Skeleton` (shimmer), `ProgressRing`, `NumberCountUp`, `EmptyState`, `Tag` with full keyboard accessibility and visible focus rings
+  - [x] Signature floating capsule Navbar (`NAV_VARIANT = "capsule" | "bottom-rounded"`) with gliding active indicator (`layoutId="nav-pill"`), rotating gradient glow, scroll-condense, mobile top and bottom capsules, and avatar menu
+  - [x] Typed REST client (`api.ts`), TanStack Query, and Zustand stores (`authStore.ts`, `datasetStore.ts`)
+  - [x] Global React `ErrorBoundary`, `ProtectedRoute`, and animated route transitions
+  - [x] Landing page with Instrument Serif accent headline, live looping mini-demo (question -> DAG plan lighting up -> DuckDB execution -> chart drawing in), feature grid, and architectural explanation
+  - [x] Dataset onboarding screen with large dropzone, animated progress ring, Data Health score ring, expandable quality breakdown (duplicates, missing, impossible values), foreign key relationship graph, and column profiling
+  - [x] Acceptance Gate: Vitest tests green (12 tests), Playwright smoke tests green (register -> login -> upload CSV -> profile + health score), visual review screenshots captured across 375px, 768px, 1440px viewports with zero horizontal overflow, `make check` passing green, tagged `phase-7-complete`
+- [ ] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
 - [ ] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
 - [ ] **Phase 9: Dashboards, reports UI, settings, polish**
 - [ ] **Phase 10: Integration, Docker, docs, media**

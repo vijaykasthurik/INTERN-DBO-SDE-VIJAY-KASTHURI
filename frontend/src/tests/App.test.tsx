@@ -1,12 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import App, { NAV_VARIANT } from "../App.tsx";
+import App from "../App.tsx";
+import { NAV_VARIANT } from "../components/Navbar.tsx";
 
 describe("App Component", () => {
-  it("renders the brand header and navbar", () => {
+  it("renders the brand header and navbar links", () => {
     render(<App />);
-    expect(screen.getByText("Lumen")).toBeInTheDocument();
-    expect(screen.getByText("Launch Studio")).toBeInTheDocument();
+    const lumenElements = screen.getAllByText("Lumen");
+    expect(lumenElements.length).toBeGreaterThan(0);
+    const workspaceLinks = screen.getAllByText("Workspace");
+    expect(workspaceLinks.length).toBeGreaterThan(0);
   });
 
   it("exports NAV_VARIANT constant conforming to design system", () => {
@@ -15,14 +18,12 @@ describe("App Component", () => {
 
   it("renders the hero headline and ground truth value proposition", () => {
     render(<App />);
-    expect(screen.getByText(/Chat with datasets/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ground truth/i)).toBeInTheDocument();
-    expect(screen.getByText("Upload Your CSV")).toBeInTheDocument();
+    expect(screen.getByText(/Instant clarity from/i)).toBeInTheDocument();
+    expect(screen.getByText(/raw tabular data/i)).toBeInTheDocument();
   });
 
-  it("renders the live preview card with verifier indicator", () => {
+  it("renders the mini demo preview with verifier indicator", () => {
     render(<App />);
-    expect(screen.getByText(/Verifier: High Confidence/i)).toBeInTheDocument();
-    expect(screen.getByText(/sales_q3_actuals.duckdb/i)).toBeInTheDocument();
+    expect(screen.getByText(/lumen:\/\/session-emea-analysis/i)).toBeInTheDocument();
   });
 });

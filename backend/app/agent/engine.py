@@ -38,17 +38,16 @@ def ensure_user_warehouse(user_id: int) -> tuple[str, list[str]]:
     con = duckdb.connect(db_path)
     try:
         tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
-        if not tables:
-            # Seed with sample data tables if available
-            sample_dir = pathlib.Path(__file__).resolve().parents[3] / "sample_data"
-            for f_name in ["sales.csv", "customers.csv", "products.csv"]:
+        sample_dir = pathlib.Path(__file__).resolve().parents[3] / "sample_data"
+        for f_name in ["sales.csv", "customers.csv", "products.csv"]:
+            table_name = os.path.splitext(f_name)[0]
+            if table_name not in tables:
                 p = sample_dir / f_name
                 if p.exists():
-                    table_name = os.path.splitext(f_name)[0]
                     con.execute(
                         f"CREATE TABLE {table_name} AS SELECT * FROM read_csv_auto('{p.as_posix()}')"
                     )
-            tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
+        tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
     finally:
         con.close()
 

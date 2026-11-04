@@ -43,6 +43,10 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 coverage.xml
+test-results/
+playwright-report/
+frontend/test-results/
+frontend/playwright-report/
 
 # Node & Frontend
 node_modules/
