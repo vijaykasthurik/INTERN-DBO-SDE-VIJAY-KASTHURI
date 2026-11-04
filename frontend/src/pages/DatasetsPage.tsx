@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -21,6 +22,8 @@ import type { Dataset } from "../lib/api";
 import { useDatasetStore } from "../stores/datasetStore";
 
 export const DatasetsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [fileProgress,setFileProgress] = useState<Record<string,number>>({});
   const {
     datasets,
     selectedDataset,
@@ -45,6 +48,15 @@ export const DatasetsPage: React.FC = () => {
   const [previewTotal, setPreviewTotal] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewQuery,setPreviewQuery]=useState("");
+  const [previewSort,setPreviewSort]=useState("");
+  const [previewDirection,setPreviewDirection]=useState("asc");
+  const [previewTypes,setPreviewTypes]=useState<Record<string,string>>({});
+  const [previewNulls,setPreviewNulls]=useState<Record<string,number|null>>({});
+  const [renameOpen,setRenameOpen]=useState(false);
+  const [renameValue,setRenameValue]=useState("");
+  const [mutating,setMutating]=useState(false);
+  const replaceRef=useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -52,39 +64,23 @@ export const DatasetsPage: React.FC = () => {
   }, [fetchDatasets]);
 
   const handleFiles = async (files: FileList | File[]) => {
-    const validFiles: File[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
-        validFiles.push(file);
-      } else {
-        setUploadError(`File "${file.name}" is not a CSV. Please upload CSV files only.`);
-        return;
-      }
-    }
+    const validFiles: File[] = Array.from(files);
 
     if (validFiles.length === 0) return;
 
     setUploadError(null);
-    setUploadProgress(15);
-    const progressTimer = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (!prev) return 15;
-        if (prev >= 90) return prev;
-        return prev + 25;
-      });
-    }, 200);
-
+    setUploadProgress(0);
+    const progress:Record<string,number> = Object.fromEntries(validFiles.map(file=>[file.name,0]));
+    setFileProgress({...progress});
     try {
-      await uploadFiles(validFiles);
-      setUploadProgress(100);
-      setTimeout(() => setUploadProgress(null), 500);
-    } catch (err: unknown) {
-      setUploadProgress(null);
-      setUploadError(err instanceof Error ? err.message : "Failed to upload file");
-    } finally {
-      clearInterval(progressTimer);
-    }
+      await uploadFiles(validFiles,(name,percent)=>{
+        progress[name]=percent; setFileProgress({...progress});
+        setUploadProgress(Math.round(Object.values(progress).reduce((sum,value)=>sum+value,0)/validFiles.length));
+      });
+      navigate("/dashboards", {state:{uploadWarnings:useDatasetStore.getState().uploadWarnings}});
+    } catch(err:unknown) {
+      setUploadError(err instanceof Error?err.message:"Upload failed");
+    } finally { setUploadProgress(null); }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -111,16 +107,16 @@ export const DatasetsPage: React.FC = () => {
       0
   );
 
-  const loadPreview = async (datasetId: string | number, offset: number) => {
+  const loadPreview = async (datasetId: string | number, offset: number, query=previewQuery, sort=previewSort, direction=previewDirection) => {
     setPreviewLoading(true);
     setActionError(null);
     try {
-      const page = await api.datasets.rows(datasetId, offset, 25);
+      const page = await api.datasets.rows(datasetId, offset, 25, query, sort, direction);
       setPreviewRows(page.rows);
       setPreviewColumns(page.columns);
+      setPreviewTypes(page.column_types); setPreviewNulls(page.column_null_counts);
       setPreviewOffset(page.offset);
       setPreviewTotal(page.total_rows);
-      setPreviewOpen(true);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Unable to load dataset rows.");
     } finally {
@@ -128,6 +124,14 @@ export const DatasetsPage: React.FC = () => {
     }
   };
 
+  const renameSelected = async () => {
+    if(!selectedDataset)return;setMutating(true);setActionError(null);
+    try{await api.datasets.rename(selectedDataset.id,renameValue);await fetchDatasets();await selectDataset(selectedDataset.id);setRenameOpen(false);}catch(err){setActionError(err instanceof Error?err.message:"Rename failed");}finally{setMutating(false);}
+  };
+  const replaceSelected = async(file:File) => {
+    if(!selectedDataset)return;setMutating(true);setActionError(null);
+    try{await api.datasets.replace(selectedDataset.id,file);await fetchDatasets();await selectDataset(selectedDataset.id);}catch(err){setActionError(err instanceof Error?err.message:"Replacement failed");}finally{setMutating(false);if(replaceRef.current)replaceRef.current.value="";}
+  };
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -165,7 +169,7 @@ export const DatasetsPage: React.FC = () => {
             Datasets & Data Quality
           </h1>
           <p className="text-sm text-ink-muted mt-1">
-            Upload CSVs into your isolated DuckDB database. Profiling and health checks run automatically.
+            Upload CSV or Excel files into your isolated DuckDB database. Profiling and health checks run automatically.
           </p>
         </div>
         <Button
@@ -174,12 +178,12 @@ export const DatasetsPage: React.FC = () => {
           size="md"
         >
           <UploadCloud className="w-4 h-4 mr-2" />
-          Upload New CSV
+          Upload files
         </Button>
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv,.txt"
+          accept=".csv,.txt,.xlsx"
           multiple
           className="hidden"
           onChange={(e) => e.target.files && handleFiles(e.target.files)}
@@ -202,7 +206,7 @@ export const DatasetsPage: React.FC = () => {
           {uploadProgress !== null ? (
             <div className="flex flex-col items-center py-2">
               <ProgressRing value={uploadProgress} size={64} strokeWidth={6} />
-              <p className="text-xs font-medium text-ink mt-3">Ingesting & Profiling CSV...</p>
+              <p className="text-xs font-medium text-ink mt-3">Validating and profiling uploaded data...</p>
             </div>
           ) : (
             <>
@@ -210,7 +214,7 @@ export const DatasetsPage: React.FC = () => {
                 <UploadCloud className="w-6 h-6" />
               </div>
               <h3 className="text-base font-semibold text-ink">
-                Drag and drop your CSV files here
+                Drag and drop CSV or Excel files here
               </h3>
               <p className="text-xs text-ink-muted mt-1">
                 Supports sales, customer, orders, or any structured tabular data.
@@ -223,6 +227,7 @@ export const DatasetsPage: React.FC = () => {
         </div>
       </div>
 
+      {Object.keys(fileProgress).length > 0 && <div role="status" className="text-xs text-ink-muted">{Object.entries(fileProgress).map(([name,percent])=><p key={name}>{name}: {percent < 100 ? `${percent}% uploaded` : "Uploaded; validating and profiling"}</p>)}</div>}
       {uploadError && (
         <motion.div
           initial={{ opacity: 0, y: -6 }}
@@ -241,7 +246,7 @@ export const DatasetsPage: React.FC = () => {
           <EmptyState
             icon={<FileSpreadsheet className="w-6 h-6" />}
             title="No datasets uploaded yet"
-            description="Upload one or more CSVs above to begin chatting with your data and detecting automated insights."
+            description="Upload one or more CSV or Excel files above to begin chatting with your data and detecting automated insights."
           />
         </div>
       ) : (
@@ -302,7 +307,7 @@ export const DatasetsPage: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => void loadPreview(selectedDataset.id, 0)} disabled={previewLoading}>
+                  <Button variant="outline" size="sm" onClick={() => {setPreviewOpen(true);void loadPreview(selectedDataset.id, 0);}} disabled={previewLoading}>
                     {previewLoading ? "Loading rows..." : "Preview Rows"}
                   </Button>
                   <Button
@@ -314,6 +319,9 @@ export const DatasetsPage: React.FC = () => {
                     <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                     Delete Table
                   </Button>
+                  <Button variant="secondary" size="sm" disabled={mutating} onClick={()=>{setRenameValue(selectedDataset.name);setRenameOpen(true);}}>Rename</Button>
+                  <Button variant="secondary" size="sm" disabled={mutating} onClick={()=>replaceRef.current?.click()}>{mutating?"Saving...":"Replace file"}</Button>
+                  <input ref={replaceRef} type="file" accept=".csv,.xlsx" className="hidden" onChange={event=>{const file=event.target.files?.[0];if(file)void replaceSelected(file);}} />
                 </div>
               </div>
 
@@ -464,6 +472,7 @@ export const DatasetsPage: React.FC = () => {
           )}
         </div>
       )}
+      <Dialog isOpen={renameOpen} onClose={()=>!mutating&&setRenameOpen(false)} title="Rename dataset"><form className="space-y-4" onSubmit={event=>{event.preventDefault();void renameSelected();}}><input aria-label="Dataset name" required maxLength={255} value={renameValue} onChange={event=>setRenameValue(event.target.value)} className="w-full p-3 border border-hairline rounded-12" /><Button type="submit" disabled={mutating}>{mutating?"Saving...":"Save name"}</Button></form></Dialog>
       <Dialog isOpen={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} title="Delete dataset">
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">Delete {deleteTarget?.name} and its analytical table, metadata, and dependent cached results?</p>
@@ -475,9 +484,10 @@ export const DatasetsPage: React.FC = () => {
       </Dialog>
       <Dialog isOpen={previewOpen} onClose={() => setPreviewOpen(false)} title={`${selectedDataset?.name || "Dataset"} rows`}>
         <div className="space-y-4">
+          <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(selectedDataset)void loadPreview(selectedDataset.id,0);}}><input aria-label="Search dataset rows" value={previewQuery} onChange={event=>setPreviewQuery(event.target.value)} className="min-w-0 flex-1 p-2 border border-hairline rounded-12 text-sm" /><Button type="submit" size="sm" disabled={previewLoading}>Search</Button></form>
           <div className="max-h-[55vh] overflow-auto border border-hairline rounded-12">
             <table className="min-w-full divide-y divide-hairline text-left text-xs font-mono">
-              <thead className="bg-surface sticky top-0"><tr>{previewColumns.map((column) => <th key={column} className="px-3 py-2">{column}</th>)}</tr></thead>
+              <thead className="bg-surface sticky top-0"><tr>{previewColumns.map((column) => <th key={column} className="px-3 py-2"><button onClick={()=>{const direction=previewSort===column&&previewDirection==="asc"?"desc":"asc";setPreviewSort(column);setPreviewDirection(direction);if(selectedDataset)void loadPreview(selectedDataset.id,0,previewQuery,column,direction);}}>{column}</button><p className="font-normal text-[10px] text-ink-muted">{previewTypes[column]} · {previewNulls[column] ?? "Unavailable"} nulls</p></th>)}</tr></thead>
               <tbody>{previewRows.map((row, index) => <tr key={index} className="border-t border-hairline">{previewColumns.map((column) => <td key={column} className="px-3 py-2">{String(row[column] ?? "")}</td>)}</tr>)}</tbody>
             </table>
           </div>

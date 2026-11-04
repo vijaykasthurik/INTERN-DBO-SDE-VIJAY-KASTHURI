@@ -22,3 +22,6 @@ Seeded with deterministic pseudo-random seed `42`.
    - 3 consecutive duplicated orders at index 10, 11, 12 appended at end of dataset.
 5. **Nulls**:
    - Rows 15 to 20 contain NULL discount values for data quality auditing tests.
+
+## Multi-sheet Excel sample
+`products.xlsx` contains Products (identical to products.csv) and Inventory (one row per product_id; stock_on_hand generated with NumPy RNG seed 42). Each sheet is ingested independently and joined only through validated product_id relationships. `scripts/gen_sample_data.py` regenerates this workbook.

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.data.ingestion import DataIngestionPipeline
-from app.db.models import Dataset, User
+from app.db.models import DashboardOrder, Dataset, User
 from app.db.session import get_db
 from app.deps import get_current_user
 from app.tools.dashboard_tool import DashboardTool
@@ -68,6 +68,10 @@ async def generate_dashboard(
         title=title, db_path=pipeline.get_user_db_path(current_user.id),
         scope_table=selected.duckdb_table_name if selected else None,
     )
+    preference = db.query(DashboardOrder).filter(DashboardOrder.user_id == current_user.id, DashboardOrder.scope == scope).first()
+    if preference:
+        positions = {widget_id: index for index, widget_id in enumerate(preference.widget_ids)}
+        dashboard_data["widgets"].sort(key=lambda widget: positions.get(widget["id"], len(positions)))
     dataset_ids = {selected.id} if selected else {dataset.id for dataset in datasets}
     _DASHBOARDS_STORE[dashboard_data["id"]] = (current_user.id, dashboard_data, dataset_ids)
 
@@ -101,3 +105,28 @@ async def get_dashboard(
         scope=dash["scope"], scope_label=dash["scope_label"],
         relationships_used=dash["relationships_used"], explanation=dash["explanation"],
     )
+
+
+class WidgetOrderRequest(BaseModel):
+    widget_ids: list[str]
+
+
+@router.patch("/{dashboard_id}/order")
+async def save_widget_order(dashboard_id: str, body: WidgetOrderRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, list[str]]:
+    stored = _DASHBOARDS_STORE.get(dashboard_id)
+    if not stored or stored[0] != current_user.id:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+    data = stored[1]
+    expected = {widget["id"] for widget in data["widgets"]}
+    if len(body.widget_ids) != len(expected) or set(body.widget_ids) != expected:
+        raise HTTPException(status_code=422, detail="Widget order must include every current widget once.")
+    scope = "combined" if data["scope"] == "combined" else str(next(iter(stored[2])))
+    preference = db.query(DashboardOrder).filter(DashboardOrder.user_id == current_user.id, DashboardOrder.scope == scope).first()
+    if preference is None:
+        preference = DashboardOrder(user_id=current_user.id, scope=scope)
+        db.add(preference)
+    preference.widget_ids = body.widget_ids
+    db.commit()
+    positions = {widget_id: index for index, widget_id in enumerate(body.widget_ids)}
+    data["widgets"].sort(key=lambda widget: positions[widget["id"]])
+    return {"widget_ids": body.widget_ids}

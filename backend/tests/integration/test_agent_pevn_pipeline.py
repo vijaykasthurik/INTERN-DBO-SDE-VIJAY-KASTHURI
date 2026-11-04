@@ -324,3 +324,41 @@ def test_evidence_ledger_endpoint_inspection(agent_test_env) -> None:
     assert ledger_data["verified"] is True
     assert ledger_data["confidence"] == "High"
     assert len(ledger_data["steps"]) >= 1
+
+
+def test_dataset_rename_replace_search_order_and_report_cascade(agent_test_env):
+    client, headers, db = agent_test_env
+    from app.db.models import DatasetColumn, ReportArtifact, MetricDefinition
+    datasets = client.get("/api/v1/datasets", headers=headers).json()
+    dataset = next(item for item in datasets if item["table_name"] == "sales")
+    dataset_id = dataset["id"]
+    renamed = client.patch(f"/api/v1/datasets/{dataset_id}", json={"name":"Sales ledger"}, headers=headers)
+    assert renamed.status_code == 200 and renamed.json()["name"] == "Sales ledger"
+    rows = client.get(f"/api/v1/datasets/{dataset_id}/rows?q=North%20America&sort=unit_price&direction=desc&limit=2", headers=headers)
+    assert rows.status_code == 200
+    assert len(rows.json()["rows"]) == 2
+    assert rows.json()["rows"][0]["unit_price"] >= rows.json()["rows"][1]["unit_price"]
+    assert rows.json()["column_types"]["unit_price"]
+    assert client.get(f"/api/v1/datasets/{dataset_id}/rows?sort=missing",headers=headers).status_code == 422
+    dashboard = client.post("/api/v1/dashboards/generate",json={"scope":str(dataset_id)},headers=headers).json()
+    order = [widget["id"] for widget in dashboard["widgets"]][::-1]
+    assert client.patch(f"/api/v1/dashboards/{dashboard['id']}/order",json={"widget_ids":order},headers=headers).status_code == 200
+    regenerated = client.post("/api/v1/dashboards/generate",json={"scope":str(dataset_id)},headers=headers).json()
+    assert [widget["id"] for widget in regenerated["widgets"]] == order
+    report = client.post("/api/v1/reports/export",json={"dashboard":dashboard,"format":"md"},headers=headers)
+    assert report.status_code == 201
+    report_url = report.json()["download_url"]
+    assert db.query(ReportArtifact).count() == 1
+    assert client.post("/api/v1/reports/export",json={"dashboard":{"id":"fake"},"format":"md"},headers=headers).status_code == 404
+    replacement = client.post(f"/api/v1/datasets/{dataset_id}/replace",files={"file":("replacement.csv",b"customer_id,revenue\nA,10\nB,20\n","text/csv")},headers=headers)
+    assert replacement.status_code == 200
+    assert replacement.json()["id"] == dataset_id and replacement.json()["row_count"] == 2
+    assert replacement.json()["name"] == "Sales ledger"
+    assert db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset_id).count() == 2
+    assert db.query(MetricDefinition).filter(MetricDefinition.dataset_id == dataset_id).count() == 0
+    assert db.query(ReportArtifact).count() == 0
+    assert client.get(report_url,headers=headers).status_code == 404
+    assert client.get(f"/api/v1/dashboards/{dashboard['id']}",headers=headers).status_code == 404
+    assert client.post("/api/v1/auth/clear-data",headers=headers).status_code == 200
+    assert client.get("/api/v1/datasets",headers=headers).json() == []
+    assert db.query(DatasetColumn).count() == 0

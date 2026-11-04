@@ -186,6 +186,7 @@ class ReportArtifact(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     format: Mapped[str] = mapped_column(String(8), nullable=False)
     source_session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_dataset_ids: Mapped[list[int]] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
@@ -258,3 +259,12 @@ class ContactMessage(Base):
     email: Mapped[str] = mapped_column(String(254), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class DashboardOrder(Base):
+    """Stable widget order per user and dashboard scope."""
+    __tablename__ = "dashboard_orders"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    scope: Mapped[str] = mapped_column(String(128), nullable=False)
+    widget_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)

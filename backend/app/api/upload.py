@@ -1,15 +1,14 @@
 """CSV upload endpoints with multi-file support, DuckDB staging, profiling, and quality scoring."""
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.core.errors import ValidationError
-from app.data.catalog import SemanticCatalogBuilder
-from app.data.ingestion import DataIngestionPipeline
-from app.data.profiler import DatasetProfiler
-from app.data.quality import QualityAuditor
-from app.db.models import Dataset, DatasetColumn, User
+from app.data.persistence import persist_dataset
+from app.data.workbook import expand_upload
+from app.db.models import User
 from app.db.session import get_db
 from app.deps import get_current_user
 
@@ -32,6 +31,7 @@ class MultiUploadResponse(BaseModel):
 
     datasets: list[UploadedDatasetInfo]
     total_files: int
+    errors: list[dict[str, str]] = Field(default_factory=list)
     status: str = "success"
 
 
@@ -45,79 +45,25 @@ async def upload_datasets(
     if not files:
         raise ValidationError("At least one CSV file must be provided")
 
-    pipeline = DataIngestionPipeline()
-    profiler = DatasetProfiler()
-    auditor = QualityAuditor()
-    catalog_builder = SemanticCatalogBuilder()
-
     uploaded_list: list[UploadedDatasetInfo] = []
 
+    errors: list[dict[str, str]] = []
+    prepared: list[tuple[str, bytes]] = []
     for file in files:
         filename = file.filename or "dataset.csv"
-        content_bytes = await file.read()
+        try:
+            prepared.extend(expand_upload(filename, await file.read(), get_settings().max_upload_mb))
+        except ValidationError as exc:
+            errors.append({"file": filename, "error": str(exc)})
 
-        # Ingest into user's DuckDB database
-        ingest_res = pipeline.ingest_csv(
-            user_id=user.id,
-            filename=filename,
-            content_bytes=content_bytes,
-        )
+    for filename, content_bytes in prepared:
 
-        table_name = ingest_res["table_name"]
-        db_path = ingest_res["db_path"]
-
-        # Run profiling & quality audit
-        profiles = profiler.profile_table(db_path, table_name)
-        quality_res = auditor.evaluate_table_quality(db_path, table_name)
-
-        # Check existing dataset with same name for this user (replace if exists)
-        existing = (
-            db.query(Dataset)
-            .filter(
-                Dataset.user_id == user.id,
-                Dataset.name == filename,
-            )
-            .first()
-        )
-
-        if existing:
-            db.delete(existing)
-            db.commit()
-
-        dataset = Dataset(
-            user_id=user.id,
-            name=filename,
-            duckdb_table_name=table_name,
-            row_count=ingest_res["row_count"],
-            column_count=ingest_res["column_count"],
-            quality_score=quality_res["score"],
-            quality_summary=quality_res,
-        )
-        db.add(dataset)
-        db.commit()
-        db.refresh(dataset)
-
-        # Add column models with profiles and semantic descriptions
-        for col_meta in ingest_res["columns"]:
-            sanitized = col_meta["sanitized_name"]
-            raw_h = col_meta["name"]
-            dtype = col_meta["data_type"]
-
-            # Match profile
-            col_prof = next((p for p in profiles if p["column_name"] == sanitized), None)
-            desc = catalog_builder.infer_column_description(raw_h, dtype)
-
-            column = DatasetColumn(
-                dataset_id=dataset.id,
-                name=raw_h,
-                sanitized_name=sanitized,
-                data_type=dtype,
-                description=desc,
-                profile_stats=col_prof,
-            )
-            db.add(column)
-
-        db.commit()
+        try:
+            dataset = persist_dataset(db, user, filename, content_bytes)
+        except ValidationError as exc:
+            db.rollback()
+            errors.append({"file": filename, "error": str(exc)})
+            continue
 
         uploaded_list.append(
             UploadedDatasetInfo(
@@ -130,7 +76,11 @@ async def upload_datasets(
             )
         )
 
+    if not uploaded_list:
+        raise ValidationError("; ".join(f"{item['file']}: {item['error']}" for item in errors))
     return MultiUploadResponse(
         datasets=uploaded_list,
-        total_files=len(uploaded_list),
+        total_files=len(files),
+        errors=errors,
+        status="partial" if errors else "success",
     )

@@ -20,7 +20,7 @@ class AnomalyTool:
         if df.empty or target_column not in df.columns:
             return {"outliers": [], "duplicates": [], "summary": {"outliers_detected": 0, "duplicate_rows": 0}}
 
-        series = pd.to_numeric(df[target_column], errors="coerce").dropna()
+        series = pd.to_numeric(df[target_column], errors="coerce").replace([np.inf, -np.inf], np.nan).dropna()
         if len(series) < 10:
             return {"outliers": [], "duplicates": [], "summary": {"outliers_detected": 0, "duplicate_rows": 0}}
 
@@ -73,8 +73,8 @@ class AnomalyTool:
                         "q3": round(q3, 2),
                         "upper_bound": round(upper_iqr, 2),
                     },
-                    "peer_group_comparison": f"Value is {peer_ratio}x the dataset median (${median:.2f})",
-                    "reason": f"Value ${val:,.2f} exceeds typical range ({q1:.2f} - {upper_iqr:.2f}) and triggered: {', '.join(methods_fired)}",
+                    "peer_group_comparison": f"Value is {peer_ratio}x the dataset median ({median:.2f})",
+                    "reason": f"Value {val:,.2f} exceeds typical range ({q1:.2f} - {upper_iqr:.2f}) and triggered: {', '.join(methods_fired)}",
                 })
 
         # 4. Duplicate Block Detection

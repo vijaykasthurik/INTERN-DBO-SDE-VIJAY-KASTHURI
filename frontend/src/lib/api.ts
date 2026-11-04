@@ -301,14 +301,22 @@ export const api = {
   datasets: {
     list: () => request<Dataset[]>("/datasets"),
     get: (id: string | number) => request<Dataset>(`/datasets/${id}`),
-    rows: (id: string | number, offset = 0, limit = 50) =>
-      request<{ columns: string[]; rows: Array<Record<string, unknown>>; offset: number; limit: number; total_rows: number }>(
-        `/datasets/${id}/rows?offset=${offset}&limit=${limit}`
+    rows: (id: string | number, offset = 0, limit = 50, q = "", sort = "", direction = "asc") =>
+      request<{ columns: string[]; rows: Array<Record<string, unknown>>; offset: number; limit: number; total_rows: number; column_types:Record<string,string>; column_null_counts:Record<string,number|null> }>(
+        `/datasets/${id}/rows?${new URLSearchParams({offset:String(offset),limit:String(limit),q,...(sort?{sort,direction}:{})})}`
       ),
-    upload: (formData: FormData) =>
-      request<{ datasets: Dataset[]; total_files: number }>("/upload", {
-        method: "POST",
-        body: formData,
+    rename: (id:string|number,name:string) => request<Dataset>(`/datasets/${id}`,{method:"PATCH",body:JSON.stringify({name})}),
+    replace: (id:string|number,file:File) => {const body=new FormData();body.append("file",file);return request<Dataset>(`/datasets/${id}/replace`,{method:"POST",body});},
+    upload: (formData: FormData, onProgress?: (percent:number) => void) =>
+      new Promise<{datasets:Dataset[]; total_files:number; errors:Array<{file:string;error:string}>}>((resolve,reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API_BASE}/upload`);
+        const token = getStoredToken();
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.upload.onprogress = (event) => { if(event.lengthComputable) onProgress?.(Math.round(event.loaded / event.total * 100)); };
+        xhr.onerror = () => reject(new Error("Upload connection failed. Please retry."));
+        xhr.onload = () => { try { const body = JSON.parse(xhr.responseText); if(xhr.status >= 200 && xhr.status < 300) resolve(body); else reject(new Error(typeof body.detail === "string" ? body.detail : "Upload failed validation.")); } catch { reject(new Error("Upload returned an unreadable response.")); } };
+        xhr.send(formData);
       }),
     delete: (id: string | number) => request<void>(`/datasets/${id}`, { method: "DELETE" }),
     relationships: () =>
@@ -357,6 +365,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ title, scope }),
       }),
+    reorder: (id:string,widget_ids:string[]) => request<{widget_ids:string[]}>(`/dashboards/${id}/order`,{method:"PATCH",body:JSON.stringify({widget_ids})}),
     get: (id: string) => request<DashboardResponse>(`/dashboards/${id}`),
   },
 

@@ -7,9 +7,10 @@ interface DatasetState {
   relationships: Relationship[];
   isLoading: boolean;
   error: string | null;
+  uploadWarnings: string[];
   fetchDatasets: () => Promise<void>;
   selectDataset: (id: string | number) => Promise<void>;
-  uploadFiles: (files: File[]) => Promise<Dataset[]>;
+  uploadFiles: (files: File[], onProgress?: (filename:string, percent:number) => void) => Promise<Dataset[]>;
   deleteDataset: (id: string | number) => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
   relationships: [],
   isLoading: false,
   error: null,
+  uploadWarnings: [],
 
   fetchDatasets: async () => {
     set({ isLoading: true, error: null });
@@ -50,23 +52,18 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
     }
   },
 
-  uploadFiles: async (files: File[]) => {
-    set({ isLoading: true, error: null });
-    try {
-      const formData = new FormData();
-      files.forEach((file) => formData.append("files", file));
-      const res = await api.datasets.upload(formData);
-      await get().fetchDatasets();
-      const uploaded = res.datasets || [];
-      if (uploaded.length > 0) {
-        await get().selectDataset(uploaded[0].id);
-      }
-      return uploaded;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to upload files";
-      set({ isLoading: false, error: msg });
-      throw err;
+  uploadFiles: async (files, onProgress) => {
+    set({isLoading:true,error:null,uploadWarnings:[]});
+    const uploaded:Dataset[]=[]; const warnings:string[]=[];
+    for(const file of files) {
+      const data = new FormData(); data.append("files",file);
+      try { const result=await api.datasets.upload(data,(percent)=>onProgress?.(file.name,percent)); uploaded.push(...result.datasets); warnings.push(...(result.errors||[]).map(item=>`${item.file}: ${item.error}`)); }
+      catch(err) { warnings.push(`${file.name}: ${err instanceof Error?err.message:"Upload failed"}`); }
     }
+    await get().fetchDatasets();
+    set({isLoading:false,uploadWarnings:warnings,error:uploaded.length?null:warnings.join("; ")});
+    if(!uploaded.length) throw new Error(warnings.join("; "));
+    return uploaded;
   },
 
   deleteDataset: async (id: string | number) => {

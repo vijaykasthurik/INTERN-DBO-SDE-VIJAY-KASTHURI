@@ -1,7 +1,5 @@
 """Authentication API router: register, login, refresh, me endpoints."""
 
-import contextlib
-import os
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, status
@@ -152,16 +150,21 @@ async def clear_user_data(
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Wipe all datasets, metrics, and chat sessions for the current user and reset their DuckDB."""
-    db.query(Dataset).filter(Dataset.user_id == user.id).delete()
-    db.query(ChatSession).filter(ChatSession.user_id == user.id).delete()
-    db.query(MetricDefinition).filter(MetricDefinition.user_id == user.id).delete()
+    from pathlib import Path
+
+    from app.api.datasets import delete_dataset
+    from app.api.reports import REPORTS_DIR
+    from app.db.models import DashboardOrder, ReportArtifact
+    for dataset in db.query(Dataset).filter(Dataset.user_id == user.id).all():
+        await delete_dataset(dataset.id, user, db)
+    for artifact in db.query(ReportArtifact).filter(ReportArtifact.user_id == user.id).all():
+        (Path(REPORTS_DIR) / Path(artifact.filename).name).unlink(missing_ok=True)
+        db.delete(artifact)
+    for session in db.query(ChatSession).filter(ChatSession.user_id == user.id).all():
+        db.delete(session)
+    for metric in db.query(MetricDefinition).filter(MetricDefinition.user_id == user.id).all():
+        db.delete(metric)
+    db.query(DashboardOrder).filter(DashboardOrder.user_id == user.id).delete(synchronize_session=False)
     db.commit()
-
-    pipeline = DataIngestionPipeline()
-    db_path = pipeline.get_user_db_path(user.id)
-    if os.path.exists(db_path):
-        with contextlib.suppress(Exception):
-            os.remove(db_path)
-
-    return {"message": "All user data, datasets, and chat sessions have been permanently cleared."}
-
+    Path(DataIngestionPipeline().get_user_db_path(user.id)).unlink(missing_ok=True)
+    return {"message": "Your datasets, analytical artifacts and chat history have been cleared."}

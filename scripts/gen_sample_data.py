@@ -102,6 +102,11 @@ def generate_datasets(output_dir: str = "sample_data") -> None:
     df_sales.loc[15:20, "discount"] = np.nan
 
     df_sales.to_csv(os.path.join(output_dir, "sales.csv"), index=False)
+    with pd.ExcelWriter(os.path.join(output_dir, "products.xlsx"), engine="openpyxl") as writer:
+        df_products.to_excel(writer, sheet_name="Products", index=False)
+        inventory = df_products[["product_id"]].copy()
+        inventory["stock_on_hand"] = np.random.default_rng(42).integers(0, 500, len(inventory))
+        inventory.to_excel(writer, sheet_name="Inventory", index=False)
     print(f"Generated {len(df_sales)} sales rows, {len(df_customers)} customers, {len(df_products)} products.")
 
 if __name__ == "__main__":

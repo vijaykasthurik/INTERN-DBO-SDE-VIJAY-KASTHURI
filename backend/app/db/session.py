@@ -29,19 +29,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db() -> None:
     """Initialize database schema tables."""
     Base.metadata.create_all(bind=engine)
-    # Lightweight SQLite schema migration for columns added in revisions
     if "sqlite" in settings.database_url:
-        try:
-            with engine.connect() as conn:
-                res = conn.execute(text("PRAGMA table_info(users)"))
-                cols = [row[1] for row in res.fetchall()]
-                if cols and "allow_shared_fallback" not in cols:
-                    conn.execute(
-                        text("ALTER TABLE users ADD COLUMN allow_shared_fallback BOOLEAN DEFAULT 1")
-                    )
-                    conn.commit()
-        except Exception:
-            pass
+        with engine.begin() as conn:
+            user_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+            if user_columns and "allow_shared_fallback" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN allow_shared_fallback BOOLEAN DEFAULT 1"))
+            report_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(report_artifacts)"))]
+            if report_columns and "source_dataset_ids" not in report_columns:
+                conn.execute(text("ALTER TABLE report_artifacts ADD COLUMN source_dataset_ids JSON NOT NULL DEFAULT '[]'"))
 
 
 def get_db() -> Generator[Session, None, None]:

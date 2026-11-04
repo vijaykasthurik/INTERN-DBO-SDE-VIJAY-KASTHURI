@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.db.models import ChatMessage, ChatSession, ReportArtifact, User
+from app.db.models import ChatMessage, ChatSession, Dataset, ReportArtifact, User
 from app.db.session import get_db
 from app.deps import get_current_user
 from app.reports.builder import ReportBuilder
@@ -53,6 +53,12 @@ async def export_report(
     """Generate executive report from Evidence Ledger session history in PDF or Markdown."""
     if not req.session_id and not req.dashboard:
         raise HTTPException(status_code=422, detail="Provide an owned chat session or a generated dashboard.")
+    if req.dashboard:
+        from app.api.dashboards import _DASHBOARDS_STORE
+        stored = _DASHBOARDS_STORE.get(str(req.dashboard.get("id", "")))
+        if not stored or stored[0] != current_user.id:
+            raise HTTPException(status_code=404, detail="Generated dashboard not found for this account.")
+        req.dashboard = stored[1]
     session = None
     messages_data: list[dict[str, Any]] = []
     if req.session_id:
@@ -111,6 +117,7 @@ async def export_report(
         title=title,
         format=ext,
         source_session_id=req.session_id,
+        source_dataset_ids=[dataset.id for dataset in db.query(Dataset).filter(Dataset.user_id == current_user.id)],
     ))
     db.commit()
 

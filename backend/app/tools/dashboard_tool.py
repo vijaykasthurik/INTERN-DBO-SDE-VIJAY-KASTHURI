@@ -34,7 +34,7 @@ class DashboardTool:
                 columns = con.execute(f'DESCRIBE "{table}"').fetchall()
                 names = [str(col[0]) for col in columns]
                 types = {str(col[0]): str(col[1]).upper() for col in columns}
-                count_result = con.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()
+                count_result = con.execute(f'SELECT COUNT(*) AS row_count FROM "{table}"').fetchone()
                 row_count = int(count_result[0]) if count_result else 0
                 numeric = [n for n in names if any(t in types[n] for t in ("INT", "DECIMAL", "DOUBLE", "FLOAT", "REAL"))]
                 dates = [n for n in names if any(t in types[n] for t in ("DATE", "TIME")) or "date" in n.lower() or "month" in n.lower()]
@@ -48,7 +48,7 @@ class DashboardTool:
                         lookup = {n.lower(): n for n in names}
                         aggregate = f'SUM("{lookup["quantity"]}" * "{lookup["unit_price"]}" * (1 - "{lookup["discount"]}"))'
                         measure = "net_revenue"
-                    value_result = con.execute(f'SELECT {aggregate} FROM "{table}"').fetchone()
+                    value_result = con.execute(f'SELECT {aggregate} AS total FROM "{table}"').fetchone()
                     value = value_result[0] if value_result else 0
                     summary.update({"measure": measure, "measure_total": float(value or 0), "measure_sql": f'SELECT {aggregate} AS total FROM "{table}"'})
                     if dates:
@@ -75,11 +75,35 @@ class DashboardTool:
                 if values:
                     widgets.append({"id": "w_trend", "title": f"{item['measure']} by {item['dates'][0] if item.get('trend') else item['categories'][0]}", "type": "chart_line" if item.get("trend") else "chart_pie", "data": {"x_axis": [v["name"] for v in values], "series": [v["value"] for v in values], "slices": values, "annotation": "Computed from the selected dataset.", "sql": item["trend_sql"], "row_count": len(values)}})
             widgets.append({"id": "w_schema", "title": "Dataset schema", "type": "alert_panel", "data": {"alerts_count": 0, "items": [], "annotation": f"Live profile: {item['row_count']:,} rows and {len(item['columns'])} columns. No anomaly scan was run."}})
+            from app.data.quality import QualityAuditor
+            from app.tools.anomaly_tool import AnomalyTool
+            quality = QualityAuditor().evaluate_table_quality(db_path, item["table"])
+            widgets = [widget for widget in widgets if widget["id"] != "w_schema"]
+            widgets.append({"id":"w_quality", "title":"Data quality", "type":"alert_panel", "data":{"alerts_count":len(quality["issues"]), "items":[{"id":str(index),"severity":issue["severity"],"detail":issue["description"]} for index,issue in enumerate(quality["issues"])], "annotation":quality["summary"], "sql":"\n".join(quality["sql_queries"])}})
+            con = duckdb.connect(db_path, read_only=True)
+            try:
+                if item["numeric"]:
+                    target = next((column for column in item["numeric"] if column in {"revenue","unit_price","amount","price"}), item["numeric"][0])
+                    sample_sql = f'SELECT * FROM "{item["table"]}" LIMIT 50000'
+                    sample = con.execute(sample_sql).df()
+                    anomalies = AnomalyTool().detect_anomalies(sample,target_column=target,id_column=sample.columns[0])
+                    widgets.append({"id":"w_anomaly", "title":f"Unusual {target} values", "type":"alert_panel", "data":{"alerts_count":len(anomalies["outliers"]), "items":[{"id":row["id"],"severity":"warning","detail":row["reason"]} for row in anomalies["outliers"][:20]], "annotation":f"Statistical scan of {len(sample):,} rows; capped at 50,000. Flags are unusual values, not proven errors.", "sql":sample_sql}})
+                    distribution_sql = f'SELECT CAST("{target}" AS VARCHAR) AS value, COUNT(*) AS frequency FROM "{item["table"]}" WHERE "{target}" IS NOT NULL GROUP BY "{target}" ORDER BY frequency DESC LIMIT 20'
+                    distribution = con.execute(distribution_sql).fetchall()
+                    widgets.append({"id":"w_distribution", "title":f"Most frequent {target} values", "type":"chart_line", "data":{"x_axis":[str(row[0]) for row in distribution],"series":[row[1] for row in distribution], "sql":distribution_sql, "annotation":"Frequency distribution of the most common observed values."}})
+                if item.get("measure_sql") and item["categories"]:
+                    category = next((column for column in item["categories"] if not column.lower().endswith("_id")), item["categories"][0])
+                    aggregate = item["measure_sql"].split(" AS total FROM ")[0].removeprefix("SELECT ")
+                    top_sql = f'SELECT CAST("{category}" AS VARCHAR), {aggregate} AS value FROM "{item["table"]}" GROUP BY "{category}" ORDER BY value DESC LIMIT 10'
+                    top = con.execute(top_sql).fetchall()
+                    widgets.append({"id":"w_top", "title":f"Top {category}", "type":"chart_pie", "data":{"slices":[{"name":str(row[0]),"value":float(row[1] or 0)} for row in top], "sql":top_sql, "annotation":"Top categories by the computed measure."}})
+            finally:
+                con.close()
             scope_label = item["table"]
         else:
-            widgets.append({"id": "w_tables", "title": "Files analyzed", "type": "kpi_card", "data": {"primary_value": f"{len(table_summaries)} files", "numeric_val": len(table_summaries), "comparison": "Live summaries from each uploaded file", "row_count": 1}})
-            widgets.append({"id": "w_rows", "title": "Rows by file", "type": "chart_pie", "data": {"slices": [{"name": t["table"], "value": t["row_count"]} for t in table_summaries], "sql": "Independent COUNT(*) query per file", "row_count": len(table_summaries)}})
-            widgets.append({"id": "w_summary", "title": "Side-by-side file summaries", "type": "alert_panel", "data": {"alerts_count": 0, "items": [{"id": t["table"], "severity": "info", "detail": f"{t['row_count']:,} rows · {len(t['columns'])} columns"} for t in table_summaries], "annotation": "Files are summarized side by side because no verified join was applied."}})
+            widgets.append({"id": "w_tables", "title": "Files analyzed", "type": "kpi_card", "data": {"primary_value": f"{len(table_summaries)} files", "numeric_val": len(table_summaries), "comparison": "Live summaries from each uploaded file", "row_count": 1, "sql": "SHOW TABLES"}})
+            widgets.append({"id": "w_rows", "title": "Rows by file", "type": "chart_pie", "data": {"slices": [{"name": t["table"], "value": t["row_count"]} for t in table_summaries], "sql": ";\n".join(f'SELECT COUNT(*) AS row_count FROM "{t["table"]}"' for t in table_summaries), "row_count": len(table_summaries)}})
+            widgets.append({"id": "w_summary", "title": "Side-by-side file summaries", "type": "alert_panel", "data": {"alerts_count": 0, "items": [{"id": t["table"], "severity": "info", "detail": f"{t['row_count']:,} rows · {len(t['columns'])} columns"} for t in table_summaries], "sql": ";\n".join(f'DESCRIBE "{t["table"]}"; SELECT COUNT(*) AS row_count FROM "{t["table"]}"' for t in table_summaries), "annotation": "Files are summarized side by side because no verified join was applied."}})
             measures = [t for t in table_summaries if "measure_total" in t]
             if measures:
                 widgets.append({"id": "w_measures", "title": "Numeric totals by file", "type": "chart_line", "data": {"x_axis": [t["table"] for t in measures], "series": [t["measure_total"] for t in measures], "annotation": "Each total is computed independently; no join was used.", "sql": "; ".join(t["measure_sql"] for t in measures), "row_count": len(measures)}})

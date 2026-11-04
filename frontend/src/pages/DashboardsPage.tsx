@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -36,13 +37,16 @@ interface PieSlice {
 interface DashboardScope { id: string; title: string }
 
 export const DashboardsPage: React.FC = () => {
+  const location = useLocation();
+  const uploadWarnings = (location.state as {uploadWarnings?:string[]}|null)?.uploadWarnings || [];
+  const [savingOrder,setSavingOrder]=useState(false);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedDashboard, setSelectedDashboard] = useState<string>("dash_exec");
   const [fullscreenWidget, setFullscreenWidget] = useState<DashboardWidget | null>(null);
   const [exportSuccess, setExportSuccess] = useState<boolean>(false);
-  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(uploadWarnings.length ? uploadWarnings.join("; ") : null);
   const [scopes, setScopes] = useState<DashboardScope[]>([{ id: "combined", title: "All uploaded files" }]);
 
   const fetchDashboard = useCallback(async (title?: string, scope = "combined") => {
@@ -70,7 +74,8 @@ export const DashboardsPage: React.FC = () => {
     });
   }, [fetchDashboard]);
 
-  const moveWidget = (index: number, direction: "up" | "down") => {
+  const moveWidget = async (index: number, direction: "up" | "down") => {
+    if(savingOrder)return;
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= widgets.length) return;
     const newWidgets = [...widgets];
@@ -78,6 +83,12 @@ export const DashboardsPage: React.FC = () => {
     newWidgets[index] = newWidgets[targetIndex];
     newWidgets[targetIndex] = temp;
     setWidgets(newWidgets);
+    if(dashboard) {
+      setSavingOrder(true);
+      try {await api.dashboards.reorder(dashboard.id,newWidgets.map(widget=>widget.id));}
+      catch(error) {setWidgets(widgets);setExportError(error instanceof Error?error.message:"Widget order could not be saved.");}
+      finally {setSavingOrder(false);}
+    }
   };
 
   const handleExport = async () => {
@@ -263,7 +274,7 @@ export const DashboardsPage: React.FC = () => {
                   <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/90 backdrop-blur-sm rounded-12 p-1 border border-hairline shadow-soft-xs">
                     <button
                       onClick={() => moveWidget(idx, "up")}
-                      disabled={idx === 0}
+                      disabled={idx === 0 || savingOrder}
                       title="Move up"
                       className="p-1 rounded-8 hover:bg-surface disabled:opacity-30 text-ink-muted hover:text-ink"
                     >
@@ -271,7 +282,7 @@ export const DashboardsPage: React.FC = () => {
                     </button>
                     <button
                       onClick={() => moveWidget(idx, "down")}
-                      disabled={idx === widgets.length - 1}
+                      disabled={idx === widgets.length - 1 || savingOrder}
                       title="Move down"
                       className="p-1 rounded-8 hover:bg-surface disabled:opacity-30 text-ink-muted hover:text-ink"
                     >
@@ -362,7 +373,7 @@ export const DashboardsPage: React.FC = () => {
                     {widget.type === "alert_panel" && (
                       <div className="space-y-2 py-2">
                         <div className="flex items-center justify-between text-xs text-ink-muted mb-1">
-                          <span>Verified Outliers</span>
+                          <span>Computed observations</span>
                           <Badge variant="warning" size="sm">
                             {Number(widget.data.alerts_count || ((widget.data.items as AnomalyItem[])?.length) || 0)} Flagged
                           </Badge>

@@ -1,16 +1,16 @@
 """Dataset metadata, column profile, quality score, relationship graph, and metrics endpoints."""
 
-from typing import Any
+from typing import Any, Literal
 
 import duckdb
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.errors import NotFoundError, PermissionDeniedError
+from app.core.errors import NotFoundError, PermissionDeniedError, ValidationError
 from app.data.ingestion import DataIngestionPipeline
 from app.data.relationships import RelationshipDetector
-from app.db.models import CacheEntry, ChatSession, Dataset, MetricDefinition, User
+from app.db.models import Dataset, MetricDefinition, User
 from app.db.session import get_db
 from app.deps import get_current_user
 
@@ -162,6 +162,9 @@ async def get_dataset_rows(
     dataset_id: int,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
+    q: str = Query(default="", max_length=500),
+    sort: str | None = None,
+    direction: Literal["asc", "desc"] = "asc",
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -172,12 +175,17 @@ async def get_dataset_rows(
     pipeline = DataIngestionPipeline()
     con = duckdb.connect(pipeline.get_user_db_path(user.id), read_only=True)
     try:
-        count_result = con.execute(f'SELECT COUNT(*) FROM "{dataset.duckdb_table_name}"').fetchone()
+        schema = con.execute(f'DESCRIBE "{dataset.duckdb_table_name}"').fetchall()
+        columns = [str(column[0]) for column in schema]
+        if sort is not None and sort not in columns:
+            raise ValidationError("Sort column is not part of this dataset.")
+        predicate = " OR ".join(f'contains(lower(CAST("{column}" AS VARCHAR)), lower(?))' for column in columns)
+        where = f" WHERE ({predicate})" if q else ""
+        parameters: list[Any] = [q] * len(columns) if q else []
+        count_result = con.execute(f'SELECT COUNT(*) FROM "{dataset.duckdb_table_name}"{where}', parameters).fetchone()
         total_rows = int(count_result[0]) if count_result else 0
-        result = con.execute(
-            f'SELECT * FROM "{dataset.duckdb_table_name}" LIMIT ? OFFSET ?', [limit, offset]
-        )
-        columns = [item[0] for item in result.description]
+        order = f' ORDER BY "{sort}" {direction.upper()} NULLS LAST' if sort else ""
+        result = con.execute(f'SELECT * FROM "{dataset.duckdb_table_name}"{where}{order} LIMIT ? OFFSET ?', [*parameters, limit, offset])
         rows = result.fetchall()
     finally:
         con.close()
@@ -187,6 +195,8 @@ async def get_dataset_rows(
         "offset": offset,
         "limit": limit,
         "total_rows": total_rows,
+        "column_types": {str(column[0]): str(column[1]) for column in schema},
+        "column_null_counts": {column.sanitized_name: (column.profile_stats or {}).get("null_count") for column in dataset.columns},
     }
 
 
@@ -262,17 +272,43 @@ async def delete_dataset(
     finally:
         con.close()
 
-    # Cache entries are currently schema scoped rather than tenant scoped; invalidate them so
-    # no answer computed from the removed table can be returned to any tenant.
-    db.query(CacheEntry).delete(synchronize_session=False)
-    session_ids = [row[0] for row in db.query(ChatSession.id).filter(ChatSession.user_id == user.id).all()]
+    from app.data.lifecycle import invalidate_dataset
+    invalidate_dataset(db, user.id, dataset_id)
     db.delete(dataset)
     db.commit()
-    from app.api.chat import _AGENT_ENGINE, _SESSION_MEMORIES
-    from app.api.dashboards import invalidate_dataset_dashboards
-
-    invalidate_dataset_dashboards(user.id, dataset_id)
-    for session_id in session_ids:
-        _SESSION_MEMORIES.pop(session_id, None)
-    _AGENT_ENGINE.cache._store.clear()
     return None
+
+
+class RenameDatasetRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+@router.patch("/{dataset_id}", response_model=DatasetDetailResponse)
+async def rename_dataset(dataset_id: int, body: RenameDatasetRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> DatasetDetailResponse:
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == user.id).first()
+    if not dataset:
+        raise NotFoundError("Dataset not found")
+    name = body.name.strip()
+    if not name:
+        raise ValidationError("Dataset name cannot be blank.")
+    duplicate = db.query(Dataset).filter(Dataset.user_id == user.id, Dataset.name == name, Dataset.id != dataset_id).first()
+    if duplicate:
+        raise ValidationError("A dataset with this name already exists.")
+    dataset.name = name
+    db.commit()
+    return await get_dataset(dataset_id, user, db)
+
+
+@router.post("/{dataset_id}/replace", response_model=DatasetDetailResponse)
+async def replace_dataset(dataset_id: int, file: UploadFile = File(...), user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> DatasetDetailResponse:
+    from app.config import get_settings
+    from app.data.persistence import persist_dataset
+    from app.data.workbook import expand_upload
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == user.id).first()
+    if not dataset:
+        raise NotFoundError("Dataset not found")
+    expanded = expand_upload(file.filename or "replacement.csv", await file.read(), get_settings().max_upload_mb)
+    if len(expanded) != 1:
+        raise ValidationError("Replace accepts one table. Upload a single-sheet workbook or CSV.")
+    persist_dataset(db, user, dataset.name, expanded[0][1], existing=dataset)
+    return await get_dataset(dataset_id, user, db)
