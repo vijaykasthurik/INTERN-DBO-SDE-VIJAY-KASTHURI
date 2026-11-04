@@ -127,6 +127,13 @@ def test_reports_api_endpoints() -> None:
         assert dl_res.status_code == 200
         assert dl_res.headers["content-type"] == "application/pdf"
         assert dl_res.content[:5] == b"%PDF-"
+        from pypdf import PdfReader
+        from io import BytesIO
+        extracted = "\n".join(page.extract_text() for page in PdfReader(BytesIO(dl_res.content)).pages)
+        assert "Lumen" in extracted
+        assert "West recorded revenue of 12.5" in extracted
+        assert "SELECT region, SUM(revenue) AS revenue FROM sales GROUP BY region" in extracted
+        assert "Confidence: High" in extracted
 
         # 2. Export Markdown
         md_res = client.post(

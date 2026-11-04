@@ -12,7 +12,7 @@ class ReportBuilder:
         session_id: str | None,
         messages: list[dict[str, Any]],
         title: str = "Lumen Executive Analytical Report",
-        dataset_name: str = "Enterprise Sales & Operations",
+        dataset_name: str = "Session analytical evidence",
         dashboard: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Aggregate executive summary, queries, anomalies, and charts into printable report structure."""
@@ -36,9 +36,12 @@ class ReportBuilder:
                     if s.get("tool") == "sql_tool" and s.get("code"):
                         sql_queries.append({
                             "query": s["code"],
-                            "runtime_ms": s.get("runtime_ms", 0.0),
-                            "row_count": s.get("row_count", 0),
+                            "runtime_ms": s.get("runtime_ms"),
+                            "row_count": s.get("row_count"),
                         })
+                    if s.get("tool") == "overview_tool" and isinstance(s.get("result_preview"),dict):
+                        for query in s["result_preview"].get("queries",[]):
+                            sql_queries.append({"query":query,"runtime_ms":None,"row_count":None})
                     if s.get("tool") == "chart_tool" and s.get("result_preview"):
                         spec = s["result_preview"]
                         if "xAxis" in spec and spec.get("series"):
@@ -71,7 +74,7 @@ class ReportBuilder:
                     "verified": False,
                 })
                 if data.get("sql"):
-                    sql_queries.append({"query": data["sql"], "runtime_ms": data.get("runtime_ms", 0), "row_count": data.get("row_count", 0)})
+                    sql_queries.append({"query": data["sql"], "runtime_ms": data.get("runtime_ms"), "row_count": data.get("row_count")})
                 if widget.get("type", "").startswith("chart"):
                     charts.append(widget)
 
