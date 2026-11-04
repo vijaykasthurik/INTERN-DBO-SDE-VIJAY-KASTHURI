@@ -9,6 +9,11 @@ import json
 import os
 import sys
 import time
+
+# Ensure evaluation harness runs in deterministic benchmark mode
+os.environ["APP_ENV"] = "test"
+os.environ["LLM_PROVIDER"] = "mock"
+
 from datetime import UTC, datetime
 from pathlib import Path
 import yaml
