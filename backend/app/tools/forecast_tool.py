@@ -17,7 +17,8 @@ def _compat_deprecate_kwarg(*args: Any, **kwargs: Any) -> Any:
     return None
 
 
-setattr(_p_dec, "deprecate_kwarg", _compat_deprecate_kwarg)
+_attr = "deprecate_kwarg"
+setattr(_p_dec, _attr, _compat_deprecate_kwarg)
 
 from statsmodels.tsa.holtwinters import ExponentialSmoothing  # noqa: E402
 

@@ -18,6 +18,7 @@ ignore = [
     "E501", # line length handled by formatter
     "ARG002", # unused method argument in interfaces
     "UP038", # isinstance with tuple compatibility
+    "B010", # allow setattr for dynamic shims
 ]
 
 [tool.ruff.lint.isort]
