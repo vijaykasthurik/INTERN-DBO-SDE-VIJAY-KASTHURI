@@ -9,6 +9,7 @@ from typing import Any
 
 import duckdb
 
+from app.agent.cache import VerifiedAnswerCache
 from app.agent.context import ContextResolver
 from app.agent.events import AgentEvent
 from app.agent.executor import StepExecutor
@@ -19,7 +20,11 @@ from app.agent.planner import ExecutionPlanner
 from app.agent.router import IntentRouter
 from app.agent.verifier import Verifier
 from app.data.ingestion import DataIngestionPipeline
+from app.llm.budget import BudgetGovernor
+from app.tools.anomaly_tool import AnomalyTool
 from app.tools.chart_tool import ChartTool
+from app.tools.forecast_tool import ForecastTool
+from app.tools.hypothesis_tool import HypothesisTool
 from app.tools.pandas_tool import PandasTool
 from app.tools.search_tool import SearchTool
 from app.tools.sql_tool import SQLTool
@@ -59,6 +64,7 @@ class AgentEngine:
         self.planner = ExecutionPlanner()
         self.verifier = Verifier()
         self.narrator = Narrator()
+        self.cache = VerifiedAnswerCache()
 
     async def run(
         self,
@@ -67,14 +73,40 @@ class AgentEngine:
         user_id: int,
         trace_id: str,
         memory: AgentMemory | None = None,
+        governor: BudgetGovernor | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
         """Execute question pipeline emitting live SSE events."""
         start_time = time.perf_counter()
+        budget = governor or BudgetGovernor()
 
         # Step 1: Context and Entity Resolution
         resolved_question, extracted_entities = self.context_resolver.resolve(question, memory)
 
-        # Step 2: Intent Routing
+        # Step 2: Cache Lookup for identical verified questions (Rule P2)
+        cache_key = self.cache.generate_cache_key(resolved_question)
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            yield AgentEvent(
+                event_type="route",
+                trace_id=trace_id,
+                payload={"lane": "cache_hit", "confidence": 1.0, "reason": "Verified semantic cache match"},
+            )
+            yield AgentEvent(
+                event_type="verify",
+                trace_id=trace_id,
+                payload={"confidence": "High", "reasons": ["Answer retrieved directly from verified cache"]},
+            )
+            if cached_result.get("chart_spec"):
+                yield AgentEvent(event_type="chart", trace_id=trace_id, payload={"chart_spec": cached_result["chart_spec"]})
+            yield AgentEvent(
+                event_type="final",
+                trace_id=trace_id,
+                payload={**cached_result, "cached": True},
+            )
+            yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "success", "cached": True})
+            return
+
+        # Step 3: Intent Routing
         route = self.router.route(resolved_question)
         yield AgentEvent(
             event_type="route",
@@ -101,12 +133,10 @@ class AgentEngine:
                     "suggested_followups": route.clarification_options[:3],
                 },
             )
-            yield AgentEvent(
-                event_type="done", trace_id=trace_id, payload={"status": "clarification_needed"}
-            )
+            yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "clarification_needed"})
             return
 
-        # Step 3: Execution Planning (DAG)
+        # Step 4: Execution Planning (DAG)
         dag = self.planner.plan(resolved_question, route.lane)
         yield AgentEvent(
             event_type="plan",
@@ -121,9 +151,12 @@ class AgentEngine:
             "pandas_tool": PandasTool(),
             "chart_tool": ChartTool(),
             "search_tool": SearchTool(),
+            "anomaly_tool": AnomalyTool(),
+            "forecast_tool": ForecastTool(),
+            "hypothesis_tool": HypothesisTool(),
         }
 
-        # Step 4: Concurrent DAG Step Execution with Evidence Ledger
+        # Step 5: Concurrent DAG Step Execution with Evidence Ledger
         executor = StepExecutor(tools_registry=tools_registry)
         ledger = EvidenceLedger()
 
@@ -139,6 +172,26 @@ class AgentEngine:
                 )
             )
 
+        # Check budget governor before proceeding with steps
+        exhausted, reason = budget.is_exhausted()
+        if exhausted:
+            notice = budget.get_degradation_notice(reason or "Budget limit reached")
+            yield AgentEvent(
+                event_type="final",
+                trace_id=trace_id,
+                payload={
+                    "direct_answer": f"Analysis stopped early due to budget constraints: {reason}.",
+                    "business_insight": "Partial analysis rendered under resource governor limit.",
+                    "how_i_got_this": "Budget Governor cap reached.",
+                    "confidence": "Low",
+                    "partial_analysis": True,
+                    "degradation_notice": notice,
+                    "suggested_followups": ["Refine question scope", "Query specific metric"],
+                },
+            )
+            yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "budget_exhausted"})
+            return
+
         # Run DAG in background task while draining event queue
         exec_task = asyncio.create_task(
             executor.execute_dag(dag, ledger, step_event_callback=_step_event_callback)
@@ -152,36 +205,43 @@ class AgentEngine:
                 continue
 
         await exec_task  # Ensure any exceptions propagate
+        budget.record_step(tokens=150)
 
-        # Step 5: Verification (Skeptic)
+        # Step 6: Draft Narration
+        draft_narrative = self.narrator.compose_final(
+            question=resolved_question,
+            lane=route.lane,
+            ledger=ledger,
+            confidence="High",
+        )
+
+        # Step 7: Verification (Skeptic) - Audit draft answer numbers against Evidence Ledger
         verification = self.verifier.verify(
-            draft_answer="Computed analytical aggregation metrics.",
+            draft_answer=draft_narrative.direct_answer,
             ledger=ledger,
         )
+
+        # Apply verification sanitization and confidence tier
+        if verification.sanitized_answer:
+            draft_narrative.direct_answer = verification.sanitized_answer
+        draft_narrative.confidence = verification.confidence
+
         yield AgentEvent(
             event_type="verify",
             trace_id=trace_id,
             payload=verification.model_dump(),
         )
 
-        # Step 6: Narration & Token Streaming
-        narrative = self.narrator.compose_final(
-            question=resolved_question,
-            lane=route.lane,
-            ledger=ledger,
-            confidence=verification.confidence,
-        )
-
         # Yield Chart event if chart was produced
-        if narrative.chart_spec:
+        if draft_narrative.chart_spec:
             yield AgentEvent(
                 event_type="chart",
                 trace_id=trace_id,
-                payload={"chart_spec": narrative.chart_spec},
+                payload={"chart_spec": draft_narrative.chart_spec},
             )
 
         # Stream narrative tokens
-        async for token in self.narrator.stream_tokens(narrative.direct_answer):
+        async for token in self.narrator.stream_tokens(draft_narrative.direct_answer):
             yield AgentEvent(
                 event_type="token",
                 trace_id=trace_id,
@@ -192,10 +252,14 @@ class AgentEngine:
         yield AgentEvent(
             event_type="final",
             trace_id=trace_id,
-            payload=narrative.model_dump(),
+            payload=draft_narrative.model_dump(),
         )
 
-        # Step 7: Completion event
+        # Cache only verified, non-Low confidence answers (Rule P2)
+        if verification.confidence != "Low":
+            self.cache.put(resolved_question, draft_narrative.model_dump(), confidence=verification.confidence)
+
+        # Step 8: Completion event
         total_time_ms = (time.perf_counter() - start_time) * 1000.0
         yield AgentEvent(
             event_type="done",
@@ -209,7 +273,7 @@ class AgentEngine:
                 user_question=question,
                 resolved_question=resolved_question,
                 lane=route.lane,
-                final_answer=narrative.direct_answer,
+                final_answer=draft_narrative.direct_answer,
                 entities=extracted_entities,
-                sql_query=narrative.sql_code,
+                sql_query=draft_narrative.sql_code,
             )

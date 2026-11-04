@@ -52,7 +52,16 @@
   - [x] Evidence-grounded Narrator streaming direct answers, business insights, ECharts JSON specs, and follow-ups
   - [x] SSE streaming endpoint (`POST /api/v1/chat/sessions/{id}/messages`) emitting standardized events (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`)
   - [x] Acceptance Gate: Integration tests for 6 core benchmark questions verified against GROUND_TRUTH, follow-up reference resolution verified, concurrency proven via parallel wave execution, SSE event ordering validated, overall backend coverage 84.92%
-- [ ] **Phase 5: Advanced tools, Verifier, cache, governor**
+- [x] **Phase 5: Advanced tools, Verifier, cache, governor**
+  - [x] `AnomalyTool` ensemble (z-score + IQR + IsolationForest) with explanation payload; detects 5 seeded outliers and 3 duplicate rows
+  - [x] `ForecastTool` Holt-Winters time-series projection with seasonality auto-detection, backtest MAPE, confidence band, and honest refusal (< 6 periods)
+  - [x] `HypothesisTool` root-cause ranking by explained variance ratio; confirms EMEA hardware supply disruption (0.84) for March 2024 dip
+  - [x] `DashboardTool` auto-compiles 5 responsive widgets (KPIs, line trend, market share pie, anomaly alert panel) with layout coordinates
+  - [x] `Verifier` (skeptic) performing sanity checks, join fan-out detection, SQL-vs-Pandas cross-checks, and number grounding with ungrounded number redaction
+  - [x] `VerifiedAnswerCache` caching High/Medium verified answers with schema-hash invalidation, TTL, and hit/miss metrics
+  - [x] Budget Governor integration enforcing step/token limits with honest partial-analysis degradation notices
+  - [x] Dashboard API endpoints (`POST /api/v1/dashboards/generate`, `GET /api/v1/dashboards/{id}`)
+  - [x] Acceptance Gate: All seeded truths verified, ungrounded number redaction verified, cache invalidation verified, 158 backend tests passing with 84.96% coverage, Ruff & Mypy green, frontend build green
 - [ ] **Phase 6: Reports, observability, evaluation harness**
 - [ ] **Phase 7: Frontend foundation and design system**
 - [ ] **Phase 8: Workspace: chat, Reasoning Timeline, Evidence, charts**
@@ -70,3 +79,5 @@
 6. **Provider Fallback & Resilience**: Ordered fallback chain with token bucket rate limiting and circuit breakers ensures seamless recovery from 429 rate limits or upstream 5xx errors.
 7. **DAG Concurrency & Wave Scheduling**: ExecutionPlanner compiles queries into topologically ordered DAG waves; steps within each wave execute in parallel via `asyncio.gather`, dramatically reducing wall-clock latency.
 8. **Real-time SSE Timeline**: Chat streaming broadcasts real-time reasoning lifecycle (`route`, `plan`, `step_start`, `step_result`, `verify`, `chart`, `token`, `final`, `done`) with per-message Evidence Ledger persistence.
+9. **Skeptic Verifier & Strict Number Grounding (Rule P1 & P2)**: The Verifier audits every cited numerical value against the Evidence Ledger. Any hallucinated or ungrounded number is automatically redacted (`[UNGROUNDED_NUMBER_REMOVED]`) and degrades confidence, ensuring the user is never misled.
+10. **Verified Semantic Cache**: Answers are cached under a SHA-256 hash of the question and dataset schema hash. Low-confidence or unverified answers are strictly excluded from the cache, and re-uploading datasets triggers automatic schema invalidation.

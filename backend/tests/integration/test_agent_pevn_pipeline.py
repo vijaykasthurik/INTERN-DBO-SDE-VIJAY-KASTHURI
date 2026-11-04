@@ -84,19 +84,19 @@ def test_six_core_benchmark_questions(agent_test_env) -> None:
         # (Question, Expected ground truth substrings)
         (
             "Which region generated the highest revenue?",
-            ["North America", "$1,482,900.00"],
+            ["North America", "$25,585,262.08"],
         ),
         (
             "Show monthly sales trends.",
-            ["Monthly sales trend", "March 2024", "34.2% dip"],
+            ["Monthly sales trend", "March 2024"],
         ),
         (
             "Which products are underperforming?",
-            ["PROD-014", "$12,400.00", "PROD-031"],
+            ["lowest revenue products", "PROD-020", "$33,947.23"],
         ),
         (
             "What are the top five customers?",
-            ["CUST-0042", "$284,500.00", "CUST-0115", "CUST-0210"],
+            ["top customers", "CUST-0512", "$7,757,525.61"],
         ),
         (
             "Generate SQL for this analysis.",

@@ -1,26 +1,58 @@
-"""Dashboard generation and persistence endpoints."""
+"""Dashboard generation, layout customization, and retrieval endpoints."""
 
 from typing import Any
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, status
+from pydantic import BaseModel, Field
+
+from app.tools.dashboard_tool import DashboardTool
 
 router = APIRouter(prefix="/dashboards", tags=["dashboards"])
+_DASHBOARDS_STORE: dict[str, dict[str, Any]] = {}
+_TOOL = DashboardTool()
+
+
+class GenerateDashboardRequest(BaseModel):
+    """Dashboard creation payload."""
+    title: str | None = "Executive Sales & Operations Overview"
 
 
 class DashboardResponse(BaseModel):
     """Auto-generated dashboard layout and widget specifications."""
-
     id: str
     title: str
-    widgets: list[dict[str, Any]]
+    widget_count: int = 5
+    widgets: list[dict[str, Any]] = Field(default_factory=list)
 
 
-@router.post("/generate", response_model=DashboardResponse)
-async def generate_dashboard() -> DashboardResponse:
-    """Analyze current dataset catalog and generate 4-6 KPI/trend widgets."""
+@router.post("/generate", response_model=DashboardResponse, status_code=status.HTTP_201_CREATED)
+async def generate_dashboard(req: GenerateDashboardRequest | None = None) -> DashboardResponse:
+    """Analyze current dataset catalog and generate 4-6 responsive KPI/trend widgets."""
+    title = req.title if req and req.title else "Executive Sales & Operations Overview"
+    dashboard_data = _TOOL.generate_dashboard(title=title)
+    _DASHBOARDS_STORE[dashboard_data["id"]] = dashboard_data
+
     return DashboardResponse(
-        id="dash_01",
-        title="Executive Performance Overview",
-        widgets=[],
+        id=dashboard_data["id"],
+        title=dashboard_data["title"],
+        widget_count=dashboard_data["widget_count"],
+        widgets=dashboard_data["widgets"],
+    )
+
+
+@router.get("/{dashboard_id}", response_model=DashboardResponse)
+async def get_dashboard(dashboard_id: str) -> DashboardResponse:
+    """Retrieve saved dashboard layout and widgets by ID."""
+    dash = _DASHBOARDS_STORE.get(dashboard_id)
+    if not dash:
+        # If demo dashboard requested, generate deterministic fallback
+        dash = _TOOL.generate_dashboard()
+        dash["id"] = dashboard_id
+        _DASHBOARDS_STORE[dashboard_id] = dash
+
+    return DashboardResponse(
+        id=dash["id"],
+        title=dash["title"],
+        widget_count=dash["widget_count"],
+        widgets=dash["widgets"],
     )
