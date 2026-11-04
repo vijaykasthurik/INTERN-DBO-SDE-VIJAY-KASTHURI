@@ -62,8 +62,10 @@ async def test_drill_shared_pool_exhaustion_falls_back() -> None:
         entry.cooldown_until = 9999999999.0
 
     # Execute request: Router must fall back to mock
-    res = await router.complete([LLMMessage(role="user", content="Ping")])
-    assert res.content is not None
+    from app.llm.base import LLMProviderError
+    assert "mock" not in router._resolve_fallback_order()
+    with pytest.raises(LLMProviderError):
+        await router.complete([LLMMessage(role="user", content="Ping")])
 
 
 @pytest.mark.asyncio

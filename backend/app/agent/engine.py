@@ -379,7 +379,7 @@ Respond ONLY with valid JSON conforming to:
                 )
             except Exception as exc:
                 logger.warn("llm_planning_failed_fallback_deterministic", error=str(exc))
-                if settings.app_env.lower() == "production":
+                if settings.app_env.lower() == "production" or settings.llm_provider != "mock":
                     yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while planning this analysis."})
                     yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
                     return
@@ -466,7 +466,7 @@ Respond ONLY with valid JSON conforming to:
                 )
             except Exception as exc:
                 logger.warn("llm_narration_failed_fallback_deterministic", error=str(exc))
-                if settings.app_env.lower() == "production":
+                if settings.app_env.lower() == "production" or settings.llm_provider != "mock":
                     yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while preparing the answer."})
                     yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
                     return
@@ -479,6 +479,12 @@ Respond ONLY with valid JSON conforming to:
                 ledger=ledger,
                 confidence="High",
             )
+
+        executed = self.narrator.compose_final(resolved_question, route.lane, ledger)
+        draft_narrative.sql_code = executed.sql_code
+        draft_narrative.pandas_code = executed.pandas_code
+        if route.lane == "code_request":
+            draft_narrative.direct_answer = executed.direct_answer
 
         # Step 7: Verification (Skeptic) - Audit draft answer numbers against Evidence Ledger
         verification = self.verifier.verify(

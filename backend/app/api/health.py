@@ -61,11 +61,11 @@ async def get_provider_status() -> ProviderStatusResponse:
     settings = get_settings()
     return ProviderStatusResponse(
         primary_provider=settings.llm_provider,
-        fallback_chain=settings.fallback_providers_list,
+        fallback_chain=[p for p in settings.fallback_providers_list if p != "mock" or settings.llm_provider == "mock"],
         providers={
-            "mock": {"available": True, "type": "rule-based", "latency_ms": 1.2},
+            "mock": {"available": settings.llm_provider == "mock", "type": "rule-based", "latency_ms": 1.2},
             "gemini": {"available": bool(settings.gemini_api_key), "type": "remote"},
-            "groq": {"available": bool(settings.groq_api_key), "type": "remote"},
+            "groq": {"available": bool(settings.groq_keys_pool), "type": "remote", "strong_model": settings.groq_model},
             "openrouter": {"available": bool(settings.openrouter_api_key), "type": "remote"},
             "openai_compat": {"available": bool(settings.openai_compat_api_key), "type": "remote"},
         },

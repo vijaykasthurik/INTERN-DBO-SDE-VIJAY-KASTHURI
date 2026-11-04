@@ -304,6 +304,7 @@ export const DashboardsPage: React.FC = () => {
                   </CardHeader>
 
                   <CardContent className="pt-2 flex-1 flex flex-col justify-center">
+                    {typeof widget.data.sql === "string" && <details className="text-xs text-ink-muted"><summary>SQL</summary><pre className="overflow-x-auto whitespace-pre-wrap">{widget.data.sql}</pre></details>}
                     {/* KPI Widget */}
                     {widget.type === "kpi_card" && (
                       <div className="py-2">

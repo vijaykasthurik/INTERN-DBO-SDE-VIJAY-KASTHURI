@@ -16,28 +16,17 @@ from app.llm.router import CircuitBreaker, LLMRouter, TokenBucket
 
 @pytest.mark.asyncio
 async def test_router_primary_429_fallback_to_secondary() -> None:
-    """Verify that when primary provider encounters 429, router automatically falls back and succeeds."""
-    settings = Settings(
-        llm_provider="gemini",
-        llm_fallback_order="gemini,mock",
-        gemini_api_key="test-key",
-    )
+    """Live routing falls back to a real adapter and excludes mock."""
+    from unittest.mock import AsyncMock
+    from app.llm.base import LLMRateLimitError
+    settings = Settings(llm_provider="gemini", llm_fallback_order="gemini,groq,mock")
     router = LLMRouter(settings=settings)
-
-    # Mock Gemini to return HTTP 429
-    url = f"{router.providers['gemini'].BASE_URL}/gemini-2.0-flash:generateContent?key=test-key"
-    with respx.mock:
-        respx.post(url).mock(
-            return_value=httpx.Response(429, json={"error": "Rate limit exceeded"})
-        )
-
-        # Complete request - router should fall back to mock
-        resp = await router.complete(
-            [LLMMessage(role="user", content="Which region has highest revenue?")]
-        )
-        assert isinstance(resp, LLMResponse)
-        assert resp.provider == "mock"
-        assert "$1,482,900.00" in resp.content
+    router.providers["gemini"].complete = AsyncMock(side_effect=LLMRateLimitError("rate limited"))
+    expected = LLMResponse(content="Computed evidence", provider="groq", model="test", prompt_tokens=0, completion_tokens=0)
+    router.providers["groq"].complete = AsyncMock(return_value=expected)
+    assert "mock" not in router._resolve_fallback_order()
+    response = await router.complete([LLMMessage(role="user", content="Analyze")])
+    assert response.provider == "groq"
 
 
 @pytest.mark.asyncio

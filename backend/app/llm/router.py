@@ -140,6 +140,8 @@ class LLMRouter(LLMProvider):
             if default_p in self.providers and default_p not in order:
                 order.append(default_p)
 
+        if self.settings.llm_provider != "mock":
+            order = [self.settings.llm_provider] + [p for p in order if p not in {"mock", self.settings.llm_provider}]
         return order
 
     def get_provider_status(self) -> dict[str, Any]:

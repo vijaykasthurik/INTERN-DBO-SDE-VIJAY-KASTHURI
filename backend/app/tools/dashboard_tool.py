@@ -85,8 +85,44 @@ class DashboardTool:
                 widgets.append({"id": "w_measures", "title": "Numeric totals by file", "type": "chart_line", "data": {"x_axis": [t["table"] for t in measures], "series": [t["measure_total"] for t in measures], "annotation": "Each total is computed independently; no join was used.", "sql": "; ".join(t["measure_sql"] for t in measures), "row_count": len(measures)}})
             scope_label = "All uploaded files"
 
+        relationships_used: list[str] = []
+        if not scope_table and len(tables) > 1:
+            from app.data.relationships import RelationshipDetector
+            graph = RelationshipDetector().detect_table_relationships(db_path, tables)
+            con = duckdb.connect(db_path, read_only=True)
+            try:
+                summaries = {item["table"]: item for item in table_summaries}
+                for edge in graph:
+                    if edge["confidence"] < 0.95:
+                        continue
+                    for fact, fk, dim, dk in [(edge["from_table"], edge["from_column"], edge["to_table"], edge["to_column"]), (edge["to_table"], edge["to_column"], edge["from_table"], edge["from_column"])]:
+                        source = summaries[fact]
+                        if "measure_sql" not in source:
+                            continue
+                        unique = con.execute(f'SELECT COUNT(*) = COUNT(DISTINCT "{dk}") FROM "{dim}"').fetchone()
+                        if not unique or not unique[0]:
+                            continue
+                        join = f'FROM "{fact}" f LEFT JOIN "{dim}" d ON f."{fk}" = d."{dk}"'
+                        counts = con.execute(f'SELECT COUNT(*), COUNT(d."{dk}") {join}').fetchone()
+                        if not counts or counts[0] != source["row_count"] or counts[1] < source["row_count"] * 0.95:
+                            continue
+                        categories = [c for c in summaries[dim]["categories"] if c != dk and not c.endswith("_id")]
+                        join_category = next((c for c in categories if c in {"segment", "category"}), categories[0] if categories else None)
+                        if join_category is None:
+                            continue
+                        aggregate = source["measure_sql"].split(" AS total FROM ")[0].removeprefix("SELECT ")
+                        for column in source["columns"]:
+                            aggregate = aggregate.replace(f'"{column}"', f'f."{column}"')
+                        sql = f'SELECT d."{join_category}" AS category, {aggregate} AS value {join} GROUP BY d."{join_category}" ORDER BY value DESC'
+                        rows = con.execute(sql).fetchall()
+                        label = f"{fact}.{fk} -> {dim}.{dk}"
+                        relationships_used.append(label)
+                        widgets.append({"id": f"join_{len(relationships_used)}", "title": f"{source['measure']} by {dim} {join_category}", "type": "chart_pie", "data": {"slices": [{"name": str(r[0]), "value": float(r[1] or 0)} for r in rows], "sql": sql, "row_count": len(rows), "annotation": f"Verified join: {counts[0]} joined rows match source rows.", "join_fanout_check": {"passed": True, "source_rows": source["row_count"], "joined_rows": counts[0]}}})
+            finally:
+                con.close()
+
         return {
             "id": f"dash_{uuid.uuid4().hex[:10]}", "title": title, "widget_count": len(widgets),
             "widgets": widgets, "scope": scope_table or "combined", "scope_label": scope_label,
-            "relationships_used": [], "explanation": "Independent live summaries; tables are shown side by side unless a verified relationship is selected.",
+            "relationships_used": relationships_used, "explanation": "Verified joins passed uniqueness, overlap and row-count checks." if relationships_used else "Side-by-side summaries: no reliable join passed validation.",
         }

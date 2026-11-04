@@ -11,8 +11,10 @@ import sys
 import time
 
 # Ensure evaluation harness runs in deterministic benchmark mode
-os.environ["APP_ENV"] = "test"
-os.environ["LLM_PROVIDER"] = "mock"
+LIVE = "--live" in sys.argv
+if not LIVE:
+    os.environ["APP_ENV"] = "test"
+    os.environ["LLM_PROVIDER"] = "mock"
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,6 +27,7 @@ from sqlalchemy.pool import StaticPool
 # Ensure backend package is in python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
+from app.config import get_settings
 from app.core.security import create_access_token, hash_password
 from app.db.models import Base, User
 from app.db.session import get_db
@@ -237,14 +240,15 @@ def run_evaluation() -> dict:
 
     scorecard = {
         "benchmark_timestamp": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "provider": get_settings().llm_provider if LIVE else "mock (deterministic)",
         "total_questions": total,
         "passed": passed_count,
         "failed": total - passed_count,
         "execution_accuracy_pct": exec_accuracy,
-        "verifier_pass_rate_pct": 100.0,
+        "verifier_pass_rate_pct": round(verifier_passes / total * 100, 1),
         "average_latency_ms": avg_latency,
         "average_cost_usd": 0.0000,
-        "cache_hit_rate_pct": 100.0,
+        "cache_hit_rate_pct": round(cache_hits / total * 100, 1),
         "results": results,
     }
 
@@ -265,7 +269,7 @@ def write_results_markdown(scorecard: dict, path: Path) -> None:
     md = [
         "# Lumen Evaluation Benchmark Scorecard",
         "",
-        f"> **Evaluation Run**: `{scorecard['benchmark_timestamp']}` | **Provider**: `mock (deterministic)`",
+        f"> **Evaluation Run**: `{scorecard['benchmark_timestamp']}` | **Provider**: `{scorecard['provider']}`",
         "",
         "## Summary Metrics",
         "",
@@ -273,7 +277,7 @@ def write_results_markdown(scorecard: dict, path: Path) -> None:
         "| :--- | :--- | :--- | :--- |",
         f"| **Execution Accuracy** | 100.0% | **{scorecard['execution_accuracy_pct']}%** | {'PASS' if scorecard['execution_accuracy_pct'] == 100.0 else 'FAIL'} |",
         f"| **Total Benchmarks** | >= 30 | **{scorecard['total_questions']}** | PASS |",
-        f"| **Verifier Pass Rate** | >= 95.0% | **{scorecard['verifier_pass_rate_pct']}%** | PASS |",
+        f"| **Verifier Pass Rate** | >= 95.0% | **{scorecard['verifier_pass_rate_pct']}%** | {'PASS' if scorecard['verifier_pass_rate_pct'] >= 95 else 'FAIL'} |",
         f"| **Average Latency** | < 1500ms | **{scorecard['average_latency_ms']} ms** | PASS |",
         f"| **Average Cost / Question** | $0.00 | **${scorecard['average_cost_usd']:.4f}** | PASS |",
         "",
