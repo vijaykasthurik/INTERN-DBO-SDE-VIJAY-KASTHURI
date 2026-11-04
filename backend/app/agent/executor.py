@@ -155,7 +155,12 @@ class StepExecutor:
                             if tables:
                                 con = duckdb.connect(db_p, read_only=True)
                                 try:
-                                    df = con.execute(f'SELECT * FROM "{tables[0]}"').df()
+                                    chosen = step.parameters.get("target_table")
+                                    if chosen is not None and chosen not in tables:
+                                        raise ValueError("Requested anomaly table is not part of this warehouse.")
+                                    if chosen is None:
+                                        chosen = max(tables,key=lambda table: (con.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone() or (0,))[0])
+                                    df = con.execute(f'SELECT * FROM "{chosen}"').df()
                                 finally:
                                     con.close()
                         if df.empty:
@@ -193,7 +198,10 @@ class StepExecutor:
                             if tables:
                                 con = duckdb.connect(db_p, read_only=True)
                                 try:
-                                    columns = con.execute(f'DESCRIBE SELECT * FROM "{tables[0]}"').fetchall()
+                                    selected_table = next((table for table in tables if any(any(token in str(column[0]).lower() for token in ("date","time","month")) for column in con.execute(f'DESCRIBE "{table}"').fetchall())), None)
+                                    if selected_table is None:
+                                        raise ValueError("No uploaded table has a time column for forecasting.")
+                                    columns = con.execute(f'DESCRIBE SELECT * FROM "{selected_table}"').fetchall()
                                     names = [str(column[0]) for column in columns]
                                     time_key = next((name for name in names if any(token in name.lower() for token in ("date", "time", "month"))), None)
                                     value_key = next(
@@ -201,9 +209,8 @@ class StepExecutor:
                                         next((str(column[0]) for column in columns if "INT" in str(column[1]).upper() or "DOUBLE" in str(column[1]).upper() or "DECIMAL" in str(column[1]).upper()), None),
                                     )
                                     if time_key and value_key:
-                                        rows = con.execute(
-                                            f'SELECT CAST("{time_key}" AS VARCHAR) AS period, SUM("{value_key}") AS value FROM "{tables[0]}" GROUP BY period ORDER BY period'
-                                        ).df().to_dict(orient="records")
+                                        measure = 'SUM(quantity * unit_price * (1-discount))' if {"quantity","unit_price","discount"}.issubset(names) else f'SUM("{value_key}")'
+                                        rows = con.execute(f"""SELECT strftime(TRY_CAST("{time_key}" AS TIMESTAMP), '%Y-%m') AS period, {measure} AS value FROM "{selected_table}" GROUP BY period HAVING period IS NOT NULL ORDER BY period""").df().to_dict(orient="records")
                                 finally:
                                     con.close()
                         if not rows:

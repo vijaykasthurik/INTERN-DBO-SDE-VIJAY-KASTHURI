@@ -215,6 +215,13 @@ async def update_dataset_metric(
     if not dataset:
         raise NotFoundError(f"Dataset with ID {dataset_id} not found")
 
+    from app.safety.sql_validator import SQLSecurityError
+    from app.tools.sql_tool import SQLExecutionError, SQLTool
+    try:
+        SQLTool(DataIngestionPipeline().get_user_db_path(user.id),allowed_tables=[dataset.duckdb_table_name]).execute(f'SELECT {req.expression} AS metric FROM "{dataset.duckdb_table_name}"')
+    except (SQLExecutionError,SQLSecurityError) as exc:
+        raise ValidationError(f"Metric expression is not valid for this dataset: {exc}") from exc
+
     existing_metric = (
         db.query(MetricDefinition)
         .filter(

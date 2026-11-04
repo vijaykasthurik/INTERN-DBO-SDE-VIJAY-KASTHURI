@@ -15,6 +15,11 @@ class PlannedAction(BaseModel):
     sql: str = ""
     code: str = ""
     chart_type: Literal["none","bar","line","pie","scatter"] = "none"
+    target_period: str | None = Field(default=None,pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    target_region: str | None = None
+    target_table: str | None = None
+    target_column: str | None = None
+    horizon: int = Field(default=3,ge=1,le=24)
     description: str = "Execute analytical query"
 
     @model_validator(mode="after")

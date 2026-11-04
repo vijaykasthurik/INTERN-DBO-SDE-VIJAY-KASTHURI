@@ -246,6 +246,8 @@ async def send_message_stream(
         captured_narrative: dict[str, Any] = {}
         captured_ledger_entries: list[dict[str, Any]] = []
         captured_verification: dict[str, Any] = {}
+        captured_error: str | None = None
+        done_event = None
 
         async for event in _AGENT_ENGINE.run(
             question=req.content,
@@ -256,6 +258,11 @@ async def send_message_stream(
             user_key=user_key,
             allow_shared_fallback=allow_fallback,
         ):
+            if event.event_type == "done":
+                done_event = event
+                continue
+            if event.event_type == "error":
+                captured_error = str(event.payload.get("message") or event.payload.get("error") or "Analysis failed.")
             if event.event_type == "final":
                 captured_narrative = event.payload
             if event.event_type == "step_result":
@@ -271,8 +278,8 @@ async def send_message_stream(
 
         # Persist assistant turn and Evidence Ledger in DB
         try:
-            content_text = captured_narrative.get("direct_answer", "Analysis completed.")
-            confidence = captured_narrative.get("confidence", "High")
+            content_text = captured_narrative.get("direct_answer") or captured_error or "Analysis did not produce a final answer."
+            confidence = captured_narrative.get("confidence", "Low")
             ledger_dict = {"entries": captured_ledger_entries, "verification": captured_verification}
 
             asst_msg = ChatMessage(
@@ -287,6 +294,11 @@ async def send_message_stream(
             db.commit()
         except Exception:
             db.rollback()
+            from app.agent.events import AgentEvent
+            failure = AgentEvent(event_type="error",trace_id=trace_id,payload={"message":"The answer could not be saved. Please retry."})
+            yield {"event":"error","data":failure.model_dump_json()}
+        if done_event is not None:
+            yield {"event":"done","data":done_event.model_dump_json()}
 
     return EventSourceResponse(_sse_generator())
 
@@ -314,5 +326,5 @@ async def get_message_evidence(
         message_id=message_id,
         steps=steps,
         verified=msg.confidence in {"High", "Medium"} and bool(ledger_data.get("verification")),
-        confidence=msg.confidence or "High",
+        confidence=msg.confidence or "Low",
     )

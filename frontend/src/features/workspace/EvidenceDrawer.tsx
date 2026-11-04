@@ -63,7 +63,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
     setRunning(true);
     setRunError(null);
     try {
-      setRunResult(await api.chat.executeSQL(currentSql));
+      const result=await api.chat.executeSQL(currentSql);setRunResult(result);setEditedSql(result.sanitized_sql);
     } catch (err: unknown) {
       setRunResult(null);
       setRunError(err instanceof Error ? err.message : "SQL execution failed.");

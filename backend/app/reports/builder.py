@@ -31,7 +31,7 @@ class ReportBuilder:
                 confidence = verification.get("confidence", msg.get("confidence", "Unknown"))
                 verified = bool(verification) and confidence in {"High", "Medium"}
                 # Extract SQL queries from evidence
-                steps = evidence.get("steps", [])
+                steps = evidence.get("entries", evidence.get("steps", []))
                 for s in steps:
                     if s.get("tool") == "sql_tool" and s.get("code"):
                         sql_queries.append({
@@ -40,7 +40,11 @@ class ReportBuilder:
                             "row_count": s.get("row_count", 0),
                         })
                     if s.get("tool") == "chart_tool" and s.get("result_preview"):
-                        charts.append(s["result_preview"])
+                        spec = s["result_preview"]
+                        if "xAxis" in spec and spec.get("series"):
+                            charts.append({"title":spec.get("title",{}).get("text","Recorded chart"),"data":{"x_axis":spec.get("xAxis",{}).get("data",[]),"series":spec["series"][0].get("data",[])}})
+                        else:
+                            charts.append(spec)
 
                 # Check for anomaly mentions
                 if "outlier" in content.lower() or "anomal" in content.lower():

@@ -104,9 +104,9 @@ User Question: "{question}"
 Analytical Intent Lane: "{lane}"
 
 Rules:
-1. If the question asks for statistical anomaly or outlier detection, set "tool": "anomaly_tool".
-2. If the question asks for time-series forecasting or projections into the future, set "tool": "forecast_tool".
-3. If the question investigates why a metric dropped or changed, set "tool": "hypothesis_tool".
+1. For anomaly detection use anomaly_tool, and set target_table and target_column to the relevant numeric measure from the schema.
+2. For time-series forecasts use forecast_tool and set horizon to the requested number of months (default 3).
+3. For revenue change investigations with order_date, quantity, unit_price and discount available, use hypothesis_tool. Set target_period (YYYY-MM) and target_region only when specified by the question; otherwise null. For other metrics use sql_tool to test observed changes. Never infer external business causes from correlations.
 4. For a request explicitly asking for Pandas/Python code, select pandas_tool and include code assigning result. The supplied dataframes dictionary contains uploaded tables by their exact table names; df is the sales table when available, otherwise the first table. No imports, file/network IO, eval or query. Use bracket column access. Use to_dict(orient="records") for a table result. Every merge/join must set validate="many_to_one" or validate="one_to_one".
 5. For all other data queries, calculations, aggregations, and trends, set "tool": "sql_tool":
    - The query MUST be a SELECT-only DuckDB SQL query. No mutations.
@@ -158,13 +158,12 @@ Respond ONLY with valid JSON conforming to:
         elif tool == "pandas_tool":
             return PlanDAG(steps=[PlanStep(id="step_1",tool="pandas_tool",description=desc,parameters={"code":data["code"]})])
         elif tool == "anomaly_tool":
-            col = "revenue" if "revenue" in question.lower() else "quantity"
             return PlanDAG(steps=[
                 PlanStep(
                     id="step_1",
                     tool="anomaly_tool",
                     description="Detect statistical anomalies using ensemble methods",
-                    parameters={"column": col},
+                    parameters={"target_column": data.get("target_column"), "target_table": data.get("target_table")},
                 )
             ])
 
@@ -174,7 +173,7 @@ Respond ONLY with valid JSON conforming to:
                     id="step_1",
                     tool="forecast_tool",
                     description="Compute Holt-Winters projection with confidence intervals",
-                    parameters={"horizon": 3},
+                    parameters={"horizon": data["horizon"]},
                 )
             ])
 
@@ -184,7 +183,7 @@ Respond ONLY with valid JSON conforming to:
                     id="step_1",
                     tool="hypothesis_tool",
                     description="Investigate root cause and rank candidate drivers",
-                    parameters={"target_period": "2024-03", "dimension": "region"},
+                    parameters={"target_period":data.get("target_period"),"target_region":data.get("target_region")},
                 )
             ])
 
@@ -360,7 +359,7 @@ Respond ONLY with valid JSON conforming to:
                     allow_shared_fallback=allow_shared_fallback,
                 )
             except Exception as exc:
-                logger.warn("llm_planning_failed_fallback_deterministic", error=str(exc))
+                logger.warn("llm_planning_failed_fallback_deterministic", error_type=type(exc).__name__)
                 if settings.app_env.lower() == "production" or settings.llm_provider != "mock":
                     yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while planning this analysis."})
                     yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
@@ -434,6 +433,11 @@ Respond ONLY with valid JSON conforming to:
         await exec_task  # Ensure any exceptions propagate
         budget.record_step(tokens=150)
 
+        if not any(entry.status == "success" and entry.tool not in {"chart_tool","search_tool"} for entry in ledger.entries):
+            yield AgentEvent(event_type="error",trace_id=trace_id,payload={"message":"No analytical tool succeeded. Review the dataset columns and query, then retry."})
+            yield AgentEvent(event_type="done",trace_id=trace_id,payload={"status":"error"})
+            return
+
         # Step 6: Draft Narration (Dynamic Live LLM strictly from Evidence Ledger)
         draft_narrative: FinalNarrative | None = None
         if is_live and route.lane not in {"code_request", "dataset_overview"}:
@@ -448,7 +452,7 @@ Respond ONLY with valid JSON conforming to:
                     allow_shared_fallback=allow_shared_fallback,
                 )
             except Exception as exc:
-                logger.warn("llm_narration_failed_fallback_deterministic", error=str(exc))
+                logger.warn("llm_narration_failed_fallback_deterministic", error_type=type(exc).__name__)
                 if settings.app_env.lower() == "production" or settings.llm_provider != "mock":
                     yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while preparing the answer."})
                     yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
