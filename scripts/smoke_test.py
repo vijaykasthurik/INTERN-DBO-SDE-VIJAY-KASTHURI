@@ -14,6 +14,7 @@ import sys
 # Ensure backend root is on sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
+from app.db.session import init_db
 from app.main import app
 from fastapi.testclient import TestClient
 
@@ -22,6 +23,7 @@ def run_smoke_test() -> None:
     print("==================================================")
     print("           Lumen System Smoke Test                ")
     print("==================================================")
+    init_db()
     client = TestClient(app)
 
     # 1. Health & Readiness
