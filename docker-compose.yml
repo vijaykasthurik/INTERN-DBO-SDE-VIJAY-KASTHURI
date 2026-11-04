@@ -6,17 +6,17 @@ services:
     container_name: lumen-backend
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - APP_ENV=production
       - LOG_LEVEL=INFO
       - DATABASE_URL=sqlite:////app/data/lumen.db
       - DATA_DIR=/app/data
-      - LLM_PROVIDER=mock
-      - SECRET_KEY=production-secure-random-secret-key-min-32-chars
     volumes:
       - lumen-data:/app/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 15s
       timeout: 5s
       retries: 3
