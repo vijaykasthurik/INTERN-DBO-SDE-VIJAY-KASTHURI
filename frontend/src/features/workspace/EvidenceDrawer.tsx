@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Copy, Check, Terminal, Table as TableIcon, ShieldAlert, Play } from "lucide-react";
 import { Drawer } from "../../components/ui/Drawer";
 import { Tabs } from "../../components/ui/Tabs";
@@ -30,23 +30,32 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   const [runError, setRunError] = useState<string | null>(null);
   const [runResult, setRunResult] = useState<Awaited<ReturnType<typeof api.chat.executeSQL>> | null>(null);
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async (text:string) => {
+    setRunError(null);
+    try {await navigator.clipboard.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),2000);}
+    catch {setRunError("Clipboard access was denied. Select and copy the code directly.");}
   };
+  const downloadCode = (code:string, extension:string) => {
+    const url=URL.createObjectURL(new Blob([code],{type:"text/plain;charset=utf-8"}));
+    const anchor=document.createElement("a");anchor.href=url;anchor.download=`lumen-analysis.${extension}`;anchor.click();URL.revokeObjectURL(url);
+  };
+  const [editedSql,setEditedSql]=useState<string|null>(null);
+  const [editedPandas,setEditedPandas]=useState<string|null>(null);
 
   const sqlEntry = entries.find((e) => e.tool === "sql_tool");
-  const currentSql = sqlCode || sqlEntry?.code || "";
+  const sourceSql = sqlCode || sqlEntry?.code || "";
+  const currentSql = editedSql ?? sourceSql;
 
-  const currentPandas =
-    pandasCode || entries.find((e) => e.tool === "pandas_tool")?.code || "";
+  const sourcePandas = pandasCode || entries.find((e) => e.tool === "pandas_tool")?.code || "";
+  const currentPandas = editedPandas ?? sourcePandas;
+  useEffect(()=>{setEditedSql(null);setEditedPandas(null);setRunResult(null);setRunError(null);},[sourceSql,sourcePandas,isOpen]);
 
   let previewRows: Array<Record<string, unknown>> = [];
   if (sqlEntry && Array.isArray(sqlEntry.result_preview)) {
     previewRows = sqlEntry.result_preview as Array<Record<string, unknown>>;
   }
 
+  if(runResult)previewRows=runResult.rows;
   const columns = previewRows.length > 0 ? Object.keys(previewRows[0]) : [];
 
   const runSql = async () => {
@@ -63,6 +72,13 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
     }
   };
 
+  const runPandas = async () => {
+    setRunning(true);setRunError(null);
+    try {setRunResult(await api.chat.executePandas(currentPandas));}
+    catch(error){setRunResult(null);setRunError(error instanceof Error?error.message:"Pandas execution failed.");}
+    finally{setRunning(false);}
+  };
+  const runTable = runResult && <div className="max-h-48 overflow-auto border border-hairline rounded-12"><table className="min-w-full text-xs font-mono"><thead><tr>{runResult.columns.map(column=><th key={column} className="px-2 py-1">{column}</th>)}</tr></thead><tbody>{runResult.rows.map((row,index)=><tr key={index}>{runResult.columns.map(column=><td key={column} className="px-2 py-1">{String(row[column]??"")}</td>)}</tr>)}</tbody></table></div>;
   return (
     <Drawer
       isOpen={isOpen}
@@ -76,7 +92,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
       width="lg"
       footer={
         <div className="flex items-center justify-between text-xs text-ink-muted">
-          <span>Engineered Trust: Skeptic Verifier passed</span>
+          <span>Inspect executed code and recorded evidence</span>
           <Button variant="secondary" size="sm" onClick={onClose}>
             Close
           </Button>
@@ -104,6 +120,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span>Executed against read-only in-memory DuckDB database</span>
               <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={()=>downloadCode(currentSql,"sql")} disabled={!currentSql}>Download .sql</Button>
               <Button variant="secondary" size="sm" onClick={() => void runSql()} disabled={!currentSql || running} className="h-7 px-2 text-xs">
                 <Play className="w-3.5 h-3.5 mr-1" />{running ? "Running..." : "Run SQL"}
               </Button>
@@ -125,7 +142,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
               </Button>
               </div>
             </div>
-            {currentSql ? <pre className="p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed"><code>{currentSql}</code></pre> : <p className="p-4 text-xs text-ink-muted bg-surface rounded-16">No SQL query was executed for this answer.</p>}
+            {currentSql ? <textarea aria-label="SQL code" value={currentSql} onChange={event=>setEditedSql(event.target.value)} rows={8} className="w-full p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed" /> : <p className="p-4 text-xs text-ink-muted bg-surface rounded-16">No SQL query was executed for this answer.</p>}
             {runError && <p role="alert" className="text-xs text-rose-700">{runError}</p>}
             {runResult && <p className="text-xs text-emerald-700">Validated query completed in {runResult.runtime_ms}ms and returned {runResult.row_count} rows.</p>}
             {runResult && <div className="max-h-48 overflow-auto border border-hairline rounded-12"><table className="min-w-full text-xs font-mono"><thead><tr>{runResult.columns.map((column) => <th key={column} className="px-2 py-1 text-left bg-surface">{column}</th>)}</tr></thead><tbody>{runResult.rows.slice(0, 20).map((row, index) => <tr key={index} className="border-t border-hairline">{runResult.columns.map((column) => <td key={column} className="px-2 py-1">{String(row[column] ?? "")}</td>)}</tr>)}</tbody></table></div>}
@@ -137,6 +154,8 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span>Executed in restricted-AST subprocess sandbox</span>
+              <Button variant="secondary" size="sm" disabled={running||!currentPandas} onClick={()=>void runPandas()}>{running?"Running...":"Run Pandas"}</Button>
+              <Button variant="ghost" size="sm" disabled={!currentPandas} onClick={()=>downloadCode(currentPandas,"py")}>Download .py</Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -154,7 +173,10 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                 )}
               </Button>
             </div>
-            {currentPandas ? <pre className="p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed"><code>{currentPandas}</code></pre> : <p className="p-4 text-xs text-ink-muted bg-surface rounded-16">No Pandas code was executed for this answer.</p>}
+            {currentPandas ? <textarea aria-label="Pandas code" value={currentPandas} onChange={event=>setEditedPandas(event.target.value)} rows={8} className="w-full p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed" /> : <p className="p-4 text-xs text-ink-muted bg-surface rounded-16">No Pandas code was executed for this answer.</p>}
+            {runError&&<p role="alert" className="text-xs text-rose-700">{runError}</p>}
+            {runResult&&<p className="text-xs text-emerald-700">Validated Pandas execution returned {runResult.row_count} rows.</p>}
+            {runTable}
           </div>
         )}
 

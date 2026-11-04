@@ -353,6 +353,7 @@ export const api = {
     getSession: (id: string) => request<ChatSession>(`/chat/sessions/${id}`),
     getEvidence: (messageId: string) =>
       request<EvidenceEntry[]>(`/chat/messages/${messageId}/evidence`),
+    executePandas: (code:string) => request<{columns:string[];rows:Array<Record<string,unknown>>;row_count:number;runtime_ms:number;executed_code:string}>("/chat/execute-pandas",{method:"POST",body:JSON.stringify({code})}),
     executeSQL: (sql: string) =>
       request<{ columns: string[]; rows: Array<Record<string, unknown>>; row_count: number; sanitized_sql: string; runtime_ms: number }>(
         "/chat/execute", { method: "POST", body: JSON.stringify({ sql }) }

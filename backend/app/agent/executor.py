@@ -105,18 +105,10 @@ class StepExecutor:
 
                     elif step.tool == "pandas_tool":
                         code_str = step.parameters.get("code", "result = {'status': 'ok'}")
-                        dataframes: dict[str, Any] = {}
                         sql_tool = self.tools_registry.get("sql_tool")
-                        if sql_tool is not None and hasattr(sql_tool, "db_path"):
-                            import duckdb
-                            allowed_tables: set[str] = set(getattr(sql_tool.validator, "allowed_tables", set()))
-                            table = "sales" if "sales" in allowed_tables else next(iter(sorted(allowed_tables)), None)
-                            if table:
-                                con = duckdb.connect(sql_tool.db_path, read_only=True)
-                                try:
-                                    dataframes["df"] = con.execute(f'SELECT * FROM "{table}"').df()
-                                finally:
-                                    con.close()
+                        if sql_tool is None:
+                            raise ValueError("No authenticated warehouse is available for Pandas.")
+                        dataframes = tool_instance.load_dataframes(sql_tool.db_path,sorted(sql_tool.validator.allowed_tables or []))
                         loop = asyncio.get_running_loop()
                         res = await loop.run_in_executor(
                             None, tool_instance.execute_script, code_str, dataframes

@@ -92,6 +92,31 @@ async def execute_sql(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+class ExecutePandasRequest(BaseModel):
+    code: str
+
+
+@router.post("/execute-pandas")
+async def execute_pandas(body: ExecutePandasRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, Any]:
+    import asyncio
+    import time
+
+    from app.safety.pandas_sandbox import SandboxViolationError
+    from app.tools.pandas_tool import PandasTool
+    datasets = db.query(Dataset).filter(Dataset.user_id == current_user.id).all()
+    if not datasets:
+        raise HTTPException(status_code=409,detail="Upload a dataset before running Pandas.")
+    start = time.perf_counter()
+    tool = PandasTool()
+    try:
+        frames = tool.load_dataframes(DataIngestionPipeline().get_user_db_path(current_user.id),[dataset.duckdb_table_name for dataset in datasets])
+        result = await asyncio.to_thread(tool.execute_script,body.code,frames)
+        columns,rows = tool.result_rows(result)
+    except (SandboxViolationError,ValueError) as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+    return {"columns":columns,"rows":rows,"row_count":len(rows),"runtime_ms":round((time.perf_counter()-start)*1000,2),"executed_code":body.code}
+
+
 @router.post("/sessions", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(
     req: CreateSessionRequest,

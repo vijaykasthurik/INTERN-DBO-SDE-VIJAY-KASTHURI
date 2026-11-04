@@ -107,7 +107,8 @@ Rules:
 1. If the question asks for statistical anomaly or outlier detection, set "tool": "anomaly_tool".
 2. If the question asks for time-series forecasting or projections into the future, set "tool": "forecast_tool".
 3. If the question investigates why a metric dropped or changed, set "tool": "hypothesis_tool".
-4. For all other data queries, calculations, aggregations, and trends, set "tool": "sql_tool":
+4. For a request explicitly asking for Pandas/Python code, select pandas_tool and include code assigning result. The supplied dataframes dictionary contains uploaded tables by their exact table names; df is the sales table when available, otherwise the first table. No imports, file/network IO, eval or query. Use bracket column access. Use to_dict(orient="records") for a table result. Every merge/join must set validate="many_to_one" or validate="one_to_one".
+5. For all other data queries, calculations, aggregations, and trends, set "tool": "sql_tool":
    - The query MUST be a SELECT-only DuckDB SQL query. No mutations.
    - Use only verified relationship keys for cross-file joins. Qualify columns by table alias. Never create a Cartesian join.
    - Standard net revenue definition: SUM(quantity * unit_price * (1 - discount))
@@ -152,6 +153,8 @@ Respond ONLY with valid JSON conforming to:
             dag.validate_dag()
             return dag
 
+        elif tool == "pandas_tool":
+            return PlanDAG(steps=[PlanStep(id="step_1",tool="pandas_tool",description=desc,parameters={"code":data["code"]})])
         elif tool == "anomaly_tool":
             col = "revenue" if "revenue" in question.lower() else "quantity"
             return PlanDAG(steps=[

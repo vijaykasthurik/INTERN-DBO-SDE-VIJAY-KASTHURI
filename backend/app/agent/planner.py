@@ -120,7 +120,7 @@ class ExecutionPlanner:
                 description="Generate equivalent Pandas sandbox code",
                 parameters={
                     "query_intent": question,
-                    "code": "result = df.groupby('region').apply(lambda g: (g['quantity'] * g['unit_price'] * (1 - g['discount'])).sum()).reset_index(name='revenue')",
+                    "code": "result = df.assign(revenue=df['quantity'] * df['unit_price'] * (1 - df['discount'])).groupby('region', as_index=False)['revenue'].sum().to_dict(orient='records')",
                 },
                 dependencies=[],  # Independent! Proves parallel execution in tests
             )

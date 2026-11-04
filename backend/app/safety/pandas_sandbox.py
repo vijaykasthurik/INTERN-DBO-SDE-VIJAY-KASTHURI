@@ -114,6 +114,10 @@ class PandasSandbox:
         "shutil",
     }
 
+    SAFE_ATTRIBUTES = {
+        "DataFrame", "Series", "array", "asarray", "nan", "isnan", "isfinite", "where", "select", "mean", "median", "std", "var", "percentile", "quantile", "sqrt", "log", "log1p", "exp", "abs", "round", "clip", "minimum", "maximum", "sum", "min", "max", "count", "size", "shape", "columns", "index", "dtypes", "dtype", "values", "T", "loc", "iloc", "at", "iat", "dt", "str", "year", "month", "day", "quarter", "dayofweek", "date", "strftime", "to_period", "to_timestamp", "to_datetime", "to_numeric", "astype", "fillna", "dropna", "isna", "notna", "isnull", "notnull", "replace", "rename", "reset_index", "set_index", "sort_values", "sort_index", "groupby", "agg", "aggregate", "transform", "rolling", "expanding", "resample", "shift", "diff", "pct_change", "cumsum", "cumprod", "cummin", "cummax", "nunique", "unique", "value_counts", "duplicated", "drop_duplicates", "merge", "join", "concat", "pivot", "pivot_table", "melt", "stack", "unstack", "head", "tail", "nlargest", "nsmallest", "copy", "assign", "to_dict", "to_list", "tolist", "to_numpy", "to_frame", "get", "items", "keys", "lower", "upper", "strip", "contains", "startswith", "endswith", "split", "len", "isin", "between", "eq", "ne", "gt", "ge", "lt", "le", "all", "any", "rank", "corr", "cov", "describe", "item"
+    }
+
     def validate_ast(self, code_str: str) -> None:
         """Parse Python code and ensure no dangerous AST nodes, dunders, or banned names exist."""
         if not code_str or not code_str.strip():
@@ -129,6 +133,12 @@ class PandasSandbox:
             if isinstance(node, self.DISALLOWED_NODES):
                 raise SandboxViolationError(f"Disallowed syntax construct: {type(node).__name__}")
 
+            if isinstance(node, ast.Attribute) and node.attr not in self.SAFE_ATTRIBUTES:
+                raise SandboxViolationError(f"Attribute '{node.attr}' is not an allowed analytical operation.")
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in {"merge", "join"}:
+                validation = next((keyword.value for keyword in node.keywords if keyword.arg == "validate"), None)
+                if not isinstance(validation, ast.Constant) or validation.value not in {"many_to_one", "one_to_one"}:
+                    raise SandboxViolationError("Pandas joins require validate='many_to_one' or 'one_to_one' to prevent fan-out.")
             # Check dunder and private attribute access
             if isinstance(node, ast.Attribute) and node.attr.startswith("_"):
                 raise SandboxViolationError(
