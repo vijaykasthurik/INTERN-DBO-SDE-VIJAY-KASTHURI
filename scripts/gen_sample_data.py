@@ -10,8 +10,10 @@ Creates:
 import os
 import random
 from datetime import datetime, timedelta
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+
 
 def generate_datasets(output_dir: str = "sample_data") -> None:
     os.makedirs(output_dir, exist_ok=True)
@@ -61,9 +63,8 @@ def generate_datasets(output_dir: str = "sample_data") -> None:
         region = cust["region"]
 
         # March 2024 dip in EMEA
-        if region == "EMEA" and order_date.year == 2024 and order_date.month == 3:
-            if random.random() < 0.65:
-                continue  # Skip orders to simulate sharp supply outage dip
+        if region == "EMEA" and order_date.year == 2024 and order_date.month == 3 and random.random() < 0.65:
+            continue  # Skip orders to simulate sharp supply outage dip
 
         qty = random.randint(1, 20)
         unit_price = prod["unit_price"]

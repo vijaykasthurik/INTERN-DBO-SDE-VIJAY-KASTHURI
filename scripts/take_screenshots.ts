@@ -1,11 +1,11 @@
 /**
  * Automated Screenshot Capture for Lumen documentation.
- * Uses Playwright to render multi-viewport responsive previews.
+ * Uses Playwright to render multi-viewport responsive previews and saves to docs/media/screenshots.
  */
 import { execSync } from "child_process";
 
-console.log("Running Playwright multi-viewport screenshot capture...");
-execSync("npx playwright test e2e/smoke.spec.ts", {
+console.log("Running Playwright multi-viewport and multi-screen screenshot capture...");
+execSync("npx playwright test e2e/capture_all_media.spec.ts", {
   cwd: "./frontend",
   stdio: "inherit",
 });

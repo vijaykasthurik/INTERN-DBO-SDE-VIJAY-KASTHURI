@@ -96,7 +96,16 @@
   - [x] Custom 404 page (`NotFoundPage.tsx`) with editorial brand styling and one-click return to workspace
   - [x] Performance & Code Splitting: Route-level dynamic `React.lazy` and `Suspense`, manual vendor/chart/framer chunks in `vite.config.ts`, main bundle chunk well within 250KB gzip budget
   - [x] Acceptance Gate: Playwright E2E suite (`dashboards_reports_settings.spec.ts`) passing 6/6 tests across dashboards generation, reordering, report export/download, settings metric creation, command palette toggle, 404 navigation, and responsive viewport checks (375, 768, 1024, 1440) with zero horizontal overflow; ESLint 0 warnings; TypeScript check 0 errors; Vitest 12/12 passing; Pytest 162/162 passing with 82.21% coverage; tagged `phase-9-complete`
-- [ ] **Phase 10: Integration, Docker, docs, media**
+- [x] **Phase 10: Integration, Docker, docs, media**
+  - [x] Hardening & Security: SELECT-only SQL validation via `sqlglot`, AST-restricted Pandas sandbox, prompt injection defense, and CORS & security headers in `frontend/nginx.conf`
+  - [x] Automated Smoke Testing (`scripts/smoke_test.py` / `make smoke`): Validates `/health`, `/ready`, `/providers/status`, user registration/login, multi-file CSV ingestion, 3 PEVN analytical inquiries, and 100% verified Evidence Ledger assertions
+  - [x] Comprehensive Flagship `README.md`: One-line pitch, hero screenshot, interactive demo video link, requirements & bonus traceability matrix mapping every capability to code and UI, local and Docker quick-start guides, environment variables table, architecture, design decisions, safety model, and roadmap
+  - [x] Technical Architecture Specifications (`docs/architecture.md`): C4 Level 1 System Context diagram, Data Onboarding pipeline flowchart, PEVN Question Loop sequence diagram, Database Model ER diagram, and Security Boundary specifications
+  - [x] Complete API Reference (`docs/api.md`): Full documentation of all 18 endpoints across Auth, Datasets, Chat (SSE), Dashboards, Reports, and System Health
+  - [x] Detailed Design Decisions (`docs/design-decisions.md`): Comprehensive rationale, tradeoffs, and architecture for all 12 core engineering principles
+  - [x] Media Assets & Video: 10 high-resolution screenshots in `docs/media/screenshots/` across 375px, 768px, 1024px, and 1440px viewports; interactive product demo video recorded at 60fps in `docs/media/demo/lumen_interactive_demo.webm`
+  - [x] Secret Audit: Exhaustive scan across entire git commit history confirmed zero API keys or secrets leaked
+  - [x] Acceptance Gate: `make check`, `make smoke`, `make eval` (32/32 benchmarks passed with 100.0% accuracy) all passing green; tagged `phase-10-complete`
 
 ---
 

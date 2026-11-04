@@ -146,7 +146,7 @@ class ExecutionPlanner:
                 tool="sql_tool",
                 description="Aggregate sales revenue by order month",
                 parameters={
-                    "sql": "SELECT strftime(order_date, '%Y-%m') AS month, SUM(quantity * unit_price * (1 - discount)) AS revenue FROM sales GROUP BY month ORDER BY month;"
+                    "sql": "SELECT SUBSTR(CAST(order_date AS VARCHAR), 1, 7) AS month, SUM(quantity * unit_price * (1 - discount)) AS revenue FROM sales GROUP BY month ORDER BY month;"
                 },
             )
             step2 = PlanStep(
@@ -227,7 +227,7 @@ class ExecutionPlanner:
         elif "average discount" in q_lower or "discount percentage" in q_lower:
             target_sql = "SELECT round(AVG(discount) * 100, 2) AS avg_discount_pct FROM sales WHERE discount IS NOT NULL;"
         elif "peak sales month" in q_lower or "highest historical sales" in q_lower or "highest sales revenue" in q_lower:
-            target_sql = "SELECT strftime(order_date, '%Y-%m') AS month, round(SUM(quantity * unit_price * (1 - discount)), 2) AS revenue FROM sales GROUP BY month ORDER BY revenue DESC LIMIT 1;"
+            target_sql = "SELECT SUBSTR(CAST(order_date AS VARCHAR), 1, 7) AS month, round(SUM(quantity * unit_price * (1 - discount)), 2) AS revenue FROM sales GROUP BY month ORDER BY revenue DESC LIMIT 1;"
         elif "quarterly" in q_lower:
             target_sql = "SELECT date_part('year', order_date) AS yr, date_part('quarter', order_date) AS qtr, round(SUM(quantity * unit_price * (1 - discount)), 2) AS revenue FROM sales GROUP BY yr, qtr ORDER BY yr, qtr;"
         elif "unit volume" in q_lower or "quantity sold" in q_lower:

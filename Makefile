@@ -23,7 +23,7 @@ check: lint typecheck test
 	@echo "=== All Quality Gates Passed (make check Green) ==="
 
 smoke:
-	$(PYTHON) -c "import httpx; r = httpx.get('http://localhost:8000/health'); assert r.status_code == 200; print('[SMOKE OK] Backend health check passed')"
+	$(PYTHON) scripts/smoke_test.py
 
 eval:
 	$(PYTHON) eval/run_eval.py
