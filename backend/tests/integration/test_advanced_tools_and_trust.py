@@ -223,6 +223,8 @@ def test_verified_answer_cache_lifecycle_and_invalidation() -> None:
 @pytest.mark.asyncio
 async def test_budget_governor_enforces_step_cap() -> None:
     """Verify BudgetGovernor caps steps and engine outputs honest partial-analysis notice."""
+    from app.data.ingestion import DataIngestionPipeline
+    DataIngestionPipeline().ingest_csv(1, "sales.csv", b"order_id,amount\n1,100.0\n")
     governor = BudgetGovernor(max_steps=1)
     governor.record_step(tokens=100)  # Reaches 1 step limit
 

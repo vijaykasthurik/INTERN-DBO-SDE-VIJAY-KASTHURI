@@ -1,5 +1,6 @@
 """Global pytest fixtures and hermetic environment configuration."""
 
+import asyncio
 import os
 import shutil
 import tempfile
@@ -25,3 +26,14 @@ def clean_test_environment():
     """Ensure tests run against a pristine database and cleanup on exit."""
     yield
     shutil.rmtree(_test_tmp_dir, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def reset_sse_app_status():
+    """Prevent 'Event is bound to a different event loop' in sse-starlette under Python 3.12."""
+    try:
+        from sse_starlette.sse import AppStatus
+        AppStatus.should_exit_event = asyncio.Event()
+    except Exception:
+        pass
+    yield

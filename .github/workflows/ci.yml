@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install dependencies
@@ -26,16 +26,19 @@ jobs:
 
       - name: Ruff Lint & Formatting
         run: |
-          ruff check backend/app
+          ruff check --config backend/pyproject.toml backend/app
 
       - name: Mypy Typecheck
         run: |
-          mypy backend/app
+          mypy --config-file backend/pyproject.toml backend/app
 
       - name: Pytest with Coverage
+        env:
+          APP_ENV: test
+          LLM_PROVIDER: mock
         run: |
           cd backend
-          pytest tests/unit/test_health.py
+          pytest tests
 
   frontend-quality:
     runs-on: ubuntu-latest
