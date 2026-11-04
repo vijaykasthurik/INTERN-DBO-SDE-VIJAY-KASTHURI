@@ -1,8 +1,8 @@
 """Statistical profiler for datasets: dtypes, nulls, distinct counts, min/max/mean, top values."""
 
 from typing import Any
+
 import duckdb
-import numpy as np
 
 
 class DatasetProfiler:

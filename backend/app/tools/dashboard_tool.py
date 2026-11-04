@@ -1,4 +1,4 @@
-"""Auto-generated dashboard tool assembling 4-6 KPI, chart, breakdown, and anomaly widgets."""
+"""Build dashboard widgets only from live, read-only DuckDB query results."""
 
 import os
 import uuid
@@ -6,162 +6,87 @@ from typing import Any
 
 import duckdb
 
-from app.tools.anomaly_tool import AnomalyTool
-
 
 class DashboardTool:
-    """Plans and compiles 4-6 responsive analytical widgets into a persisted dashboard spec."""
+    """Compile per-table or side-by-side multi-table dashboards from tenant data."""
 
     def generate_dashboard(
         self,
         title: str = "Executive Sales & Operations Overview",
         data_summary: dict[str, Any] | None = None,
         db_path: str | None = None,
+        scope_table: str | None = None,
     ) -> dict[str, Any]:
-        """Compile a responsive 5-widget dashboard with real KPI cards, trends, top-N, and anomaly panels."""
-        dash_id = f"dash_{uuid.uuid4().hex[:10]}"
+        if not db_path or not os.path.exists(db_path):
+            raise ValueError("Upload a dataset before generating a dashboard.")
+        con = duckdb.connect(db_path, read_only=True)
+        try:
+            tables = [str(row[0]) for row in con.execute("SHOW TABLES").fetchall()]
+            if scope_table:
+                if scope_table not in tables:
+                    raise ValueError("The selected dataset is no longer available.")
+                tables = [scope_table]
+            if not tables:
+                raise ValueError("Upload a dataset before generating a dashboard.")
 
-        # Baseline defaults
-        rev_str = "$25,585,262.08"
-        vol_str = "4,959 orders"
-        vol_sub = "Across 1,000 customers"
-        trend_x = ["2023-01", "2023-06", "2023-12", "2024-03", "2024-06", "2024-12"]
-        trend_series: list[float] = [850000, 1020000, 1420000, 940000, 1280000, 1650000]
-        region_slices: list[dict[str, Any]] = [
-            {"name": "North America", "value": 25585262.08, "share": "52.4%"},
-            {"name": "EMEA", "value": 11420500.00, "share": "23.4%"},
-            {"name": "APAC", "value": 8150200.00, "share": "16.7%"},
-            {"name": "LATAM", "value": 3680100.00, "share": "7.5%"},
-        ]
-        anomaly_items: list[dict[str, Any]] = [
-            {"id": "ORD-OUT-05", "severity": "critical", "detail": "Unit Price $14,000.00 (z-score: 4.8)"},
-            {"id": "ORD-OUT-01", "severity": "critical", "detail": "Unit Price $12,500.00 (z-score: 4.2)"},
-            {"id": "ORD-OUT-03", "severity": "high", "detail": "Unit Price $11,200.00 (z-score: 3.7)"},
-        ]
+            table_summaries: list[dict[str, Any]] = []
+            for table in tables:
+                columns = con.execute(f'DESCRIBE "{table}"').fetchall()
+                names = [str(col[0]) for col in columns]
+                types = {str(col[0]): str(col[1]).upper() for col in columns}
+                count_result = con.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()
+                row_count = int(count_result[0]) if count_result else 0
+                numeric = [n for n in names if any(t in types[n] for t in ("INT", "DECIMAL", "DOUBLE", "FLOAT", "REAL"))]
+                dates = [n for n in names if any(t in types[n] for t in ("DATE", "TIME")) or "date" in n.lower() or "month" in n.lower()]
+                categories = [n for n in names if n not in numeric and n not in dates and not types[n].startswith(("BLOB", "MAP", "STRUCT", "LIST"))]
+                summary: dict[str, Any] = {"table": table, "row_count": row_count, "columns": names, "numeric": numeric, "dates": dates, "categories": categories}
+                if numeric:
+                    measure = next((n for n in numeric if any(word in n.lower() for word in ("revenue", "sales", "amount", "price", "total"))), numeric[0])
+                    quoted = f'"{measure}"'
+                    aggregate = f'SUM({quoted})'
+                    if {"quantity", "unit_price", "discount"}.issubset({n.lower() for n in names}):
+                        lookup = {n.lower(): n for n in names}
+                        aggregate = f'SUM("{lookup["quantity"]}" * "{lookup["unit_price"]}" * (1 - "{lookup["discount"]}"))'
+                        measure = "net_revenue"
+                    value_result = con.execute(f'SELECT {aggregate} FROM "{table}"').fetchone()
+                    value = value_result[0] if value_result else 0
+                    summary.update({"measure": measure, "measure_total": float(value or 0), "measure_sql": f'SELECT {aggregate} AS total FROM "{table}"'})
+                    if dates:
+                        date_col = dates[0]
+                        trend_sql = f'SELECT CAST("{date_col}" AS VARCHAR) AS period, {aggregate} AS value FROM "{table}" GROUP BY period ORDER BY period LIMIT 100'
+                        rows = con.execute(trend_sql).fetchall()
+                        summary.update({"trend": [{"name": str(r[0]), "value": float(r[1] or 0)} for r in rows], "trend_sql": trend_sql})
+                    elif categories:
+                        category = categories[0]
+                        trend_sql = f'SELECT CAST("{category}" AS VARCHAR) AS name, {aggregate} AS value FROM "{table}" GROUP BY name ORDER BY value DESC LIMIT 20'
+                        rows = con.execute(trend_sql).fetchall()
+                        summary.update({"breakdown": [{"name": str(r[0]), "value": float(r[1] or 0)} for r in rows], "trend_sql": trend_sql})
+                table_summaries.append(summary)
+        finally:
+            con.close()
 
-        # Compute real metrics if database exists
-        if db_path and os.path.exists(db_path):
-            try:
-                con = duckdb.connect(db_path, read_only=True)
-                tables = [r[0] for r in con.execute("SHOW TABLES").fetchall()]
-                if "sales" in tables:
-                    tot_rev = con.execute(
-                        "SELECT round(SUM(quantity * unit_price * (1 - discount)), 2) FROM sales;"
-                    ).fetchone()[0]
-                    if tot_rev:
-                        rev_str = f"${float(tot_rev):,.2f}"
-
-                    tot_orders, tot_custs = con.execute(
-                        "SELECT COUNT(*), COUNT(DISTINCT customer_id) FROM sales;"
-                    ).fetchone()
-                    vol_str = f"{tot_orders:,} orders"
-                    vol_sub = f"Across {tot_custs:,} customers"
-
-                    m_rows = con.execute(
-                        "SELECT SUBSTR(CAST(order_date AS VARCHAR), 1, 7) AS m, "
-                        "round(SUM(quantity * unit_price * (1 - discount)), 2) AS rev "
-                        "FROM sales GROUP BY m ORDER BY m;"
-                    ).fetchall()
-                    if m_rows:
-                        trend_x = [str(r[0]) for r in m_rows]
-                        trend_series = [float(r[1]) for r in m_rows]
-
-                    r_rows = con.execute(
-                        "SELECT region, round(SUM(quantity * unit_price * (1 - discount)), 2) AS rev "
-                        "FROM sales GROUP BY region ORDER BY rev DESC;"
-                    ).fetchall()
-                    if r_rows:
-                        tot = sum(float(r[1]) for r in r_rows) or 1.0
-                        region_slices = [
-                            {
-                                "name": str(r[0]),
-                                "value": float(r[1]),
-                                "share": f"{(float(r[1]) / tot * 100):.1f}%",
-                            }
-                            for r in r_rows
-                        ]
-
-                    df = con.execute("SELECT order_id, unit_price FROM sales;").df()
-                    anom_tool = AnomalyTool()
-                    anom_res = anom_tool.detect_anomalies(df, target_column="unit_price", id_column="order_id")
-                    if anom_res.get("outliers"):
-                        anomaly_items = [
-                            {
-                                "id": str(o["id"]),
-                                "severity": "critical" if float(o.get("z_score", 0)) > 4.0 else "high",
-                                "detail": f"Unit Price ${float(o['value']):,.2f} (z-score: {o.get('z_score', 3.0)})",
-                            }
-                            for o in anom_res["outliers"][:5]
-                        ]
-                con.close()
-            except Exception:
-                pass
-
-        widgets: list[dict[str, Any]] = [
-            # 1. Total Revenue KPI Card
-            {
-                "id": "w_kpi_rev",
-                "title": "Total Net Revenue",
-                "type": "kpi_card",
-                "grid_pos": {"x": 0, "y": 0, "w": 4, "h": 2},
-                "data": {
-                    "primary_value": rev_str,
-                    "comparison": "+14.2% vs previous period",
-                    "status": "positive",
-                },
-            },
-            # 2. Total Order Volume KPI Card
-            {
-                "id": "w_kpi_vol",
-                "title": "Total Order Volume",
-                "type": "kpi_card",
-                "grid_pos": {"x": 4, "y": 0, "w": 4, "h": 2},
-                "data": {
-                    "primary_value": vol_str,
-                    "comparison": vol_sub,
-                    "status": "neutral",
-                },
-            },
-            # 3. Monthly Revenue Trend Chart
-            {
-                "id": "w_chart_trend",
-                "title": "Monthly Revenue Trend (24-Month Horizon)",
-                "type": "chart_line",
-                "grid_pos": {"x": 0, "y": 2, "w": 8, "h": 4},
-                "data": {
-                    "chart_type": "line",
-                    "x_axis": trend_x,
-                    "series": trend_series,
-                    "annotation": "Real monthly time-series progression from DuckDB warehouse",
-                },
-            },
-            # 4. Regional Market Share Breakdown
-            {
-                "id": "w_chart_region",
-                "title": "Revenue Distribution by Region",
-                "type": "chart_pie",
-                "grid_pos": {"x": 8, "y": 0, "w": 4, "h": 3},
-                "data": {
-                    "chart_type": "pie",
-                    "slices": region_slices,
-                },
-            },
-            # 5. Anomaly & Outlier Alerts Panel
-            {
-                "id": "w_panel_anomalies",
-                "title": "Statistical Outlier Alerts",
-                "type": "alert_panel",
-                "grid_pos": {"x": 8, "y": 3, "w": 4, "h": 3},
-                "data": {
-                    "alerts_count": len(anomaly_items),
-                    "items": anomaly_items,
-                },
-            },
-        ]
+        widgets: list[dict[str, Any]] = []
+        if len(table_summaries) == 1:
+            item = table_summaries[0]
+            widgets.append({"id": "w_rows", "title": f"Rows in {item['table']}", "type": "kpi_card", "data": {"primary_value": f"{item['row_count']:,} rows", "numeric_val": item["row_count"], "comparison": f"{len(item['columns'])} columns", "sql": f'SELECT COUNT(*) AS row_count FROM "{item["table"]}"', "row_count": 1}})
+            if "measure_total" in item:
+                widgets.append({"id": "w_total", "title": f"Total {item['measure']}", "type": "kpi_card", "data": {"primary_value": f"{item['measure_total']:,.2f}", "numeric_val": item["measure_total"], "comparison": f"Computed from {item['table']}", "sql": item["measure_sql"], "row_count": 1}})
+                values = item.get("trend") or item.get("breakdown") or []
+                if values:
+                    widgets.append({"id": "w_trend", "title": f"{item['measure']} by {item['dates'][0] if item.get('trend') else item['categories'][0]}", "type": "chart_line" if item.get("trend") else "chart_pie", "data": {"x_axis": [v["name"] for v in values], "series": [v["value"] for v in values], "slices": values, "annotation": "Computed from the selected dataset.", "sql": item["trend_sql"], "row_count": len(values)}})
+            widgets.append({"id": "w_schema", "title": "Dataset schema", "type": "alert_panel", "data": {"alerts_count": 0, "items": [], "annotation": f"Live profile: {item['row_count']:,} rows and {len(item['columns'])} columns. No anomaly scan was run."}})
+            scope_label = item["table"]
+        else:
+            widgets.append({"id": "w_tables", "title": "Files analyzed", "type": "kpi_card", "data": {"primary_value": f"{len(table_summaries)} files", "numeric_val": len(table_summaries), "comparison": "Live summaries from each uploaded file", "row_count": 1}})
+            widgets.append({"id": "w_rows", "title": "Rows by file", "type": "chart_pie", "data": {"slices": [{"name": t["table"], "value": t["row_count"]} for t in table_summaries], "sql": "Independent COUNT(*) query per file", "row_count": len(table_summaries)}})
+            widgets.append({"id": "w_summary", "title": "Side-by-side file summaries", "type": "alert_panel", "data": {"alerts_count": 0, "items": [{"id": t["table"], "severity": "info", "detail": f"{t['row_count']:,} rows · {len(t['columns'])} columns"} for t in table_summaries], "annotation": "Files are summarized side by side because no verified join was applied."}})
+            measures = [t for t in table_summaries if "measure_total" in t]
+            if measures:
+                widgets.append({"id": "w_measures", "title": "Numeric totals by file", "type": "chart_line", "data": {"x_axis": [t["table"] for t in measures], "series": [t["measure_total"] for t in measures], "annotation": "Each total is computed independently; no join was used.", "sql": "; ".join(t["measure_sql"] for t in measures), "row_count": len(measures)}})
+            scope_label = "All uploaded files"
 
         return {
-            "id": dash_id,
-            "title": title,
-            "widget_count": len(widgets),
-            "widgets": widgets,
+            "id": f"dash_{uuid.uuid4().hex[:10]}", "title": title, "widget_count": len(widgets),
+            "widgets": widgets, "scope": scope_table or "combined", "scope_label": scope_label,
+            "relationships_used": [], "explanation": "Independent live summaries; tables are shown side by side unless a verified relationship is selected.",
         }

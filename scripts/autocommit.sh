@@ -1,29 +1,31 @@
 #!/usr/bin/env bash
-# Autocommit daemon for Lumen
-# Loops every INTERVAL seconds (default 1800 = 30m)
-# Performs secret check, commits changes, and pushes to remote.
-
+#!/usr/bin/env bash
+set -u
 INTERVAL="${AUTOCOMMIT_INTERVAL:-1800}"
-
-echo "Starting Lumen autocommit loop (interval: ${INTERVAL}s)..."
+SECRET_PATTERN='(?i)(sk-[a-z0-9]{32,}|ghp_[a-z0-9]{36}|AIzaSy[a-z0-9_-]{33}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
 
 while true; do
-    sleep "$INTERVAL"
-    
-    # Check for secret patterns in staged changes before committing
-    if git status --porcelain | grep -q '^[MARCD]'; then
-        # Check for actual token patterns (Gemini, OpenAI, GitHub, Private Keys)
-        if git diff --cached | grep -iE '(sk-[a-zA-Z0-9]{32,}|ghp_[a-zA-Z0-9]{36}|AIzaSy[a-zA-Z0-9_-]{33}|BEGIN [A-Z ]*PRIVATE KEY)' > /dev/null 2>&1; then
-            echo "[autocommit] [WARNING] Real secret pattern detected in staged changes! Aborting commit."
-            continue
-        fi
+  sleep "$INTERVAL"
+  if [[ "$(git branch --show-current)" != "main" ]]; then
+    echo "[autocommit] Refusing to checkpoint outside main."
+    continue
+  fi
 
-        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-        echo "[autocommit] [${TIMESTAMP}] Staging and committing changes..."
-        git add -A
-        git commit -m "chore(auto): checkpoint ${TIMESTAMP}" || true
-        git push origin main || echo "[autocommit] [WARNING] git push failed"
-    else
-        echo "[autocommit] [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] No changes to commit."
-    fi
+  git add -A
+  if git diff --cached --quiet; then
+    continue
+  fi
+
+  if git diff --cached --name-only | grep -Ei '(^|/)(\.env($|\.)|node_modules/|\.venv/|venv/|dist/|build/)|^(data|backend/data|frontend/data)/' >/dev/null; then
+    echo "[autocommit] Refusing checkpoint: protected path staged."
+    continue
+  fi
+  if git diff --cached --unified=0 | grep -Eiq "$SECRET_PATTERN"; then
+    echo "[autocommit] Refusing checkpoint: secret-like content detected."
+    continue
+  fi
+
+  timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  git commit -m "chore(auto): checkpoint ${timestamp}" || continue
+  git push origin main || echo "[autocommit] Push failed; checkpoint remains local."
 done

@@ -63,6 +63,7 @@ frontend/build/
 # Data and SQLite/DuckDB databases
 /data/
 /backend/data/
+/backend/app/data/reports/
 !backend/app/data/
 *.db
 *.sqlite

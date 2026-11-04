@@ -1,65 +1,22 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Dashboards, Reports, Settings, Command Palette & 404 E2E", () => {
-  test("dashboards: generate, widgets rendering, fullscreen and reordering", async ({ page }) => {
+  test("dashboards: empty state and live generation error without uploaded data", async ({ page }) => {
     await page.goto("/dashboards");
-
-    // 1. Verify page title and header
     await expect(page.locator("h1")).toContainText("Executive Dashboards");
-    await expect(page.getByText("Total Net Revenue")).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("Statistical Outlier Alerts")).toBeVisible();
-
-    // 2. Click Generate Dashboard button
-    const generateBtn = page.locator("button:has-text('Generate Dashboard')");
-    await expect(generateBtn).toBeVisible();
-    await generateBtn.click();
-
-    // Verify widgets remain visible and active
-    await expect(page.locator("h3:has-text('Monthly Revenue Trend')").first()).toBeVisible({ timeout: 5000 });
-
-    // 3. Test Fullscreen Dialog on first widget card
-    const firstCard = page.locator(".group.relative").first();
-    await firstCard.hover();
-    const fullscreenBtn = firstCard.locator("button[title='Fullscreen']");
-    if (await fullscreenBtn.isVisible()) {
-      await fullscreenBtn.click();
-      await expect(page.locator("h3:has-text('Total Net Revenue')")).toBeVisible();
-      // Close fullscreen dialog
-      await page.locator("button:has-text('Close')").click();
-    }
-
-    // 4. Test reorder widget
-    const moveDownBtn = firstCard.locator("button[title='Move down']");
-    if (await moveDownBtn.isVisible()) {
-      await moveDownBtn.click();
-    }
+    await expect(page.getByText("Upload a dataset to generate a live dashboard.")).toBeVisible();
+    await page.getByRole("button", { name: "Generate Dashboard" }).click();
+    await expect(page.getByRole("alert")).toBeVisible();
   });
 
-  test("reports: list, export new report dialog and markdown preview", async ({ page }) => {
+  test("reports: empty history and export dialog require a real analysis session", async ({ page }) => {
     await page.goto("/reports");
-
-    // 1. Verify reports listing
     await expect(page.locator("h1")).toContainText("Executive Reports & Dossiers");
-    await expect(page.getByText("Executive Revenue & Anomaly Audit")).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("March 2024 Supply Chain Contraction Breakdown")).toBeVisible();
-
-    // 2. Open Preview modal on Markdown report
-    const previewBtn = page.locator("button:has-text('Preview')").first();
-    await previewBtn.click();
-    await expect(page.getByText("Lumen Analytical Dossier")).toBeVisible();
-    await page.locator("button:has-text('Close')").click();
-
-    // 3. Click Export New Report
+    await expect(page.getByText("No reports have been generated for this account yet.")).toBeVisible();
     await page.locator("button:has-text('Export New Report')").click();
     await expect(page.getByText("Report Title")).toBeVisible();
-
-    // Fill in new report title and submit
-    const titleInput = page.locator("input[placeholder*='Q1 Revenue']");
-    await titleInput.fill("Automated E2E Operational Report");
-    await page.locator("button:has-text('Generate & Export')").click();
-
-    // Verify new report appears
-    await expect(page.getByText("Automated E2E Operational Report")).toBeVisible({ timeout: 8000 });
+    await expect(page.locator("select option[value='']")).toHaveText("No analysis sessions available");
+    await page.getByRole("button", { name: "Cancel" }).click();
   });
 
   test("settings: provider health, security guardrails, metric definitions and clear data dialog", async ({ page }) => {
@@ -72,15 +29,8 @@ test.describe("Dashboards, Reports, Settings, Command Palette & 404 E2E", () => 
     await expect(page.getByText("Sandboxed")).toBeVisible();
     await expect(page.getByText("Prompt Injection Defense")).toBeVisible();
 
-    // 2. Add Business Metric
-    await page.locator("button:has-text('Add Metric')").click();
-    await page.locator("input[placeholder*='gross_profit_margin']").fill("churn_rate");
-    await page.locator("input[placeholder*='SUM(revenue - cost)']").fill("COUNT(churned) / COUNT(*)");
-    await page.locator("input[placeholder*='Explain how this metric']").fill("Percentage of lost accounts");
-    await page.locator("button:has-text('Save Metric')").click();
-
-    // Assert metric added
-    await expect(page.getByText("churn_rate")).toBeVisible();
+    await expect(page.locator("button:has-text('Add Metric')")).toBeDisabled();
+    await expect(page.getByText("Upload a dataset to define business metrics.")).toBeVisible();
 
     // 3. Test Clear Data dialog opens
     await page.locator("button:has-text('Clear My Data')").click();

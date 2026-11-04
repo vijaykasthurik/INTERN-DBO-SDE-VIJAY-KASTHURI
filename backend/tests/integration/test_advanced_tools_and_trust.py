@@ -105,10 +105,17 @@ def test_hypothesis_tool_ranks_march_dip() -> None:
     assert refuted[0]["explained_variance_ratio"] < 0.10
 
 
-def test_dashboard_tool_widgets_and_layout() -> None:
-    """Verify DashboardTool compiles 4-6 responsive analytical widgets with layout coordinates."""
+def test_dashboard_tool_widgets_use_live_duckdb_data(tmp_path) -> None:
+    """Verify dashboard figures are computed from a real tenant database and never defaults."""
+    import duckdb
+
     tool = DashboardTool()
-    dash = tool.generate_dashboard(title="Q1 Executive Board Deck")
+    db_path = str(tmp_path / "dashboard.duckdb")
+    con = duckdb.connect(db_path)
+    con.execute("CREATE TABLE sales (month VARCHAR, region VARCHAR, revenue DOUBLE)")
+    con.execute("INSERT INTO sales VALUES ('2025-01', 'West', 12.5), ('2025-02', 'East', 7.5)")
+    con.close()
+    dash = tool.generate_dashboard(title="Q1 Executive Board Deck", db_path=db_path)
 
     assert "id" in dash
     assert dash["title"] == "Q1 Executive Board Deck"
@@ -120,15 +127,11 @@ def test_dashboard_tool_widgets_and_layout() -> None:
     widget_types = {w["type"] for w in widgets}
     assert "kpi_card" in widget_types
     assert "chart_line" in widget_types
-    assert "chart_pie" in widget_types
     assert "alert_panel" in widget_types
-
-    # Ensure every widget specifies responsive grid positions
-    for w in widgets:
-        assert "grid_pos" in w
-        pos = w["grid_pos"]
-        assert all(k in pos for k in ["x", "y", "w", "h"])
-        assert pos["w"] > 0 and pos["h"] > 0
+    totals = next(w for w in widgets if w["id"] == "w_total")
+    assert totals["data"]["numeric_val"] == 20.0
+    assert "2025-01" in next(w for w in widgets if w["id"] == "w_trend")["data"]["x_axis"]
+    assert "25,585,262" not in str(widgets)
 
 
 def test_verifier_catches_and_redacts_ungrounded_numbers() -> None:

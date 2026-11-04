@@ -14,6 +14,8 @@ import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Dialog } from "../components/ui/Dialog";
 import { api, type ReportExportResponse } from "../lib/api";
+import ReactMarkdown from "react-markdown";
+import type { ChatSession, ReportArtifactItem } from "../lib/api";
 
 interface ReportItem {
   id: string;
@@ -23,62 +25,40 @@ interface ReportItem {
   pages?: number;
   filename: string;
   download_url: string;
-  content_preview?: string;
 }
 
-const DEFAULT_REPORTS: ReportItem[] = [
-  {
-    id: "rep_exec_q1",
-    title: "Executive Revenue & Anomaly Audit",
-    format: "pdf",
-    created_at: "10 minutes ago",
-    pages: 4,
-    filename: "rep_exec_q1.pdf",
-    download_url: "/api/v1/reports/download/rep_exec_q1.pdf",
-  },
-  {
-    id: "rep_march_cohort",
-    title: "March 2024 Supply Chain Contraction Breakdown",
-    format: "md",
-    created_at: "1 hour ago",
-    filename: "rep_march_cohort.md",
-    download_url: "/api/v1/reports/download/rep_march_cohort.md",
-    content_preview: `# Lumen Analytical Dossier: March 2024 Contraction Breakdown
-
-## Executive Summary
-Across the Q1 2024 timeframe, net revenue totaled $25,585,262.08 across 4,959 orders. An abrupt 34% drop occurred in March 2024 due to regional supply constraints in EMEA and APAC.
-
-## Evidence Ledger Cross-Check
-- SQL Computed Total: $25,585,262.08
-- Verification Confidence: High (100% Number Grounding)
-- Outliers Isolated: 5 high-value anomalies flagged with z-score > 3.0
-`,
-  },
-  {
-    id: "rep_segmentation",
-    title: "Customer Segment Lifetime Value Distribution",
-    format: "pdf",
-    created_at: "Yesterday",
-    pages: 3,
-    filename: "rep_segmentation.pdf",
-    download_url: "/api/v1/reports/download/rep_segmentation.pdf",
-  },
-];
-
 export const ReportsPage: React.FC = () => {
-  const [reports, setReports] = useState<ReportItem[]>(DEFAULT_REPORTS);
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState("");
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [exportTitle, setExportTitle] = useState<string>("Q1 2024 Revenue & Operations Brief");
   const [exportFormat, setExportFormat] = useState<"pdf" | "md">("pdf");
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [previewReport, setPreviewReport] = useState<ReportItem | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMarkdown, setPreviewMarkdown] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    Promise.all([api.reports.list(), api.chat.listSessions()])
+      .then(([artifacts, currentSessions]: [ReportArtifactItem[], ChatSession[]]) => {
+        setReports(artifacts.map((item) => ({ ...item, id: item.report_id })));
+        setSessions(currentSessions);
+        setSelectedSession(currentSessions[0]?.id || "");
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Unable to load reports."));
+  }, []);
 
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsExporting(true);
+    setError(null);
     try {
+      if (!selectedSession) throw new Error("Create an analysis session before exporting a report.");
       const res: ReportExportResponse = await api.reports.export({
-        session_id: "active_session",
+        session_id: selectedSession,
         title: exportTitle,
         format: exportFormat,
       });
@@ -88,46 +68,59 @@ export const ReportsPage: React.FC = () => {
         title: res.title,
         format: res.format,
         created_at: "Just now",
-        pages: res.format === "pdf" ? 3 : undefined,
         filename: `${res.report_id}.${res.format}`,
         download_url: res.download_url,
-        content_preview:
-          res.format === "md"
-            ? `# ${res.title}\n\nGenerated with Lumen Evidence Ledger verification.\nAll numbers verified against DuckDB data warehouse.`
-            : undefined,
       };
 
-      setReports([newReport, ...reports]);
+      setReports((current) => [newReport, ...current]);
       setIsExportOpen(false);
-    } catch {
-      // Local fallback
-      const fallbackId = `rep_${Date.now().toString(36)}`;
-      const newReport: ReportItem = {
-        id: fallbackId,
-        title: exportTitle,
-        format: exportFormat,
-        created_at: "Just now",
-        pages: exportFormat === "pdf" ? 3 : undefined,
-        filename: `${fallbackId}.${exportFormat}`,
-        download_url: `/api/v1/reports/download/${fallbackId}.${exportFormat}`,
-      };
-      setReports([newReport, ...reports]);
-      setIsExportOpen(false);
+      await downloadReport(newReport);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Report generation failed.");
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleDownload = (report: ReportItem) => {
-    // If backend file download is available, trigger window open or anchor click
-    const url = report.download_url.startsWith("http")
-      ? report.download_url
-      : `http://localhost:8000${report.download_url}`;
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = report.filename;
-    a.target = "_blank";
-    a.click();
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadReport = async (report: ReportItem) => {
+    setDownloading(report.id);
+    setError(null);
+    try {
+      const response = await api.reports.download(report.download_url);
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const serverName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+      saveBlob(blob, serverName || report.filename);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Report download failed.");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const preview = async (report: ReportItem) => {
+    setError(null);
+    setPreviewReport(report);
+    setPreviewUrl(null);
+    setPreviewMarkdown(null);
+    try {
+      const response = await api.reports.download(report.download_url);
+      const blob = await response.blob();
+      if (report.format === "md") setPreviewMarkdown(await blob.text());
+      else setPreviewUrl(URL.createObjectURL(blob));
+    } catch (err: unknown) {
+      setPreviewReport(null);
+      setError(err instanceof Error ? err.message : "Report preview failed.");
+    }
   };
 
   return (
@@ -155,8 +148,13 @@ export const ReportsPage: React.FC = () => {
         </Button>
       </div>
 
+      {error && <div role="alert" className="mb-5 p-3 rounded-16 bg-rose-50 border border-rose-100 text-rose-700 text-sm">{error}</div>}
+
       {/* Reports List */}
       <div className="space-y-4">
+        {reports.length === 0 && (
+          <Card className="p-8 text-center text-sm text-ink-muted">No reports have been generated for this account yet.</Card>
+        )}
         {reports.map((report) => (
           <Card
             key={report.id}
@@ -183,31 +181,24 @@ export const ReportsPage: React.FC = () => {
                 <p className="text-xs text-ink-muted flex items-center gap-1.5 mt-0.5">
                   <Clock className="w-3 h-3" />
                   Generated {report.created_at}
-                  {report.pages ? ` • ${report.pages} pages • Includes Matplotlib figures` : " • Raw Markdown Dossier"}
+                  {report.format === "pdf" ? " • PDF report" : " • Markdown report"}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {report.format === "md" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPreviewReport(report)}
-                  className="text-xs text-ink-muted hover:text-ink"
-                >
-                  <Eye className="w-3.5 h-3.5 mr-1.5" />
-                  Preview
-                </Button>
-              )}
+              <Button variant="ghost" size="sm" onClick={() => void preview(report)} className="text-xs text-ink-muted hover:text-ink">
+                <Eye className="w-3.5 h-3.5 mr-1.5" />Preview
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => handleDownload(report)}
+                onClick={() => void downloadReport(report)}
+                disabled={downloading === report.id}
                 className="text-xs"
               >
                 <Download className="w-3.5 h-3.5 mr-1.5" />
-                Download {report.format.toUpperCase()}
+                {downloading === report.id ? "Downloading..." : `Download ${report.format.toUpperCase()}`}
               </Button>
             </div>
           </Card>
@@ -221,6 +212,13 @@ export const ReportsPage: React.FC = () => {
         title="Export Analytical Report"
       >
         <form onSubmit={handleExport} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">Analysis Session</label>
+            <select value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)} required className="w-full px-3 py-2 text-sm bg-surface rounded-12 border border-hairline text-ink">
+              {sessions.length === 0 && <option value="">No analysis sessions available</option>}
+              {sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
               Report Title
@@ -305,17 +303,20 @@ export const ReportsPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* Markdown Preview Dialog */}
+      {/* Generated Report Preview Dialog */}
       <Dialog
         isOpen={Boolean(previewReport)}
-        onClose={() => setPreviewReport(null)}
+        onClose={() => { setPreviewReport(null); setPreviewMarkdown(null); if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }}
         title={previewReport?.title || "Report Preview"}
       >
         <div className="space-y-4">
-          <div className="p-4 bg-slate-900 text-slate-100 rounded-12 font-mono text-xs whitespace-pre-wrap max-h-96 overflow-y-auto">
-            {previewReport?.content_preview ||
-              `# ${previewReport?.title}\n\nGenerated with verified Evidence Ledger citations.`}
-          </div>
+          {previewReport?.format === "pdf" ? (
+            previewUrl ? <iframe title={previewReport.title} src={previewUrl} className="w-full h-[70vh] rounded-12 border border-hairline" /> : <p className="text-sm text-ink-muted">Loading report preview…</p>
+          ) : (
+            <div className="p-4 bg-surface rounded-12 text-sm max-h-96 overflow-y-auto prose prose-sm max-w-none">
+              {previewMarkdown !== null ? <ReactMarkdown>{previewMarkdown}</ReactMarkdown> : <p className="text-ink-muted">Loading report preview…</p>}
+            </div>
+          )}
           <div className="flex justify-end">
             <Button variant="secondary" onClick={() => setPreviewReport(null)}>
               Close

@@ -69,10 +69,14 @@ class Verifier:
                     if isinstance(row, dict):
                         for col_k, col_v in row.items():
                             k_lower = col_k.lower()
-                            if ("revenue" in k_lower or "price" in k_lower) and not any(kw in k_lower for kw in ["growth", "pct", "change", "diff", "delta", "prev"]):
-                                if isinstance(col_v, (int, float)) and col_v < -0.01:
-                                    reasons.append(f"Suspicious negative value ({col_v}) found in column '{col_k}'.")
-                                    replan_recommended = True
+                            if (
+                                ("revenue" in k_lower or "price" in k_lower)
+                                and not any(kw in k_lower for kw in ["growth", "pct", "change", "diff", "delta", "prev"])
+                                and isinstance(col_v, (int, float))
+                                and col_v < -0.01
+                            ):
+                                reasons.append(f"Suspicious negative value ({col_v}) found in column '{col_k}'.")
+                                replan_recommended = True
 
         # Sanity check: explicit percentage > 100% when describing a share or proportion
         explicit_percentages = re.findall(r"(\d+(?:\.\d+)?)%", draft_answer)

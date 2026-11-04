@@ -1,9 +1,8 @@
 """PEVN Agent Engine: Orchestrates Plan-Execute-Verify-Narrate lifecycle with streaming SSE."""
 
 import asyncio
+import hashlib
 import json
-import os
-import pathlib
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -23,7 +22,7 @@ from app.agent.router import IntentRouter
 from app.agent.verifier import Verifier
 from app.config import get_settings
 from app.data.ingestion import DataIngestionPipeline
-from app.llm.base import LLMMessage
+from app.llm.base import LLMMessage, LLMResponse
 from app.llm.budget import BudgetGovernor
 from app.llm.router import LLMRouter
 from app.tools.anomaly_tool import AnomalyTool
@@ -38,23 +37,13 @@ logger = structlog.get_logger(__name__)
 
 
 def ensure_user_warehouse(user_id: int) -> tuple[str, list[str]]:
-    """Ensure per-user DuckDB warehouse exists, seeded with sample tables if not populated."""
+    """Return only tables explicitly uploaded by this tenant; never seed hidden sample data."""
     pipeline = DataIngestionPipeline()
     db_path = pipeline.get_user_db_path(user_id)
 
     con = duckdb.connect(db_path)
     try:
-        tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
-        sample_dir = pathlib.Path(__file__).resolve().parents[3] / "sample_data"
-        for f_name in ["sales.csv", "customers.csv", "products.csv"]:
-            table_name = os.path.splitext(f_name)[0]
-            if table_name not in tables:
-                p = sample_dir / f_name
-                if p.exists():
-                    con.execute(
-                        f"CREATE TABLE {table_name} AS SELECT * FROM read_csv_auto('{p.as_posix()}')"
-                    )
-        tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
+        tables = [str(row[0]) for row in con.execute("SHOW TABLES").fetchall()]
     finally:
         con.close()
 
@@ -136,6 +125,8 @@ Respond ONLY with valid JSON conforming to:
             user_key=user_key,
             allow_shared_fallback=allow_shared_fallback,
         )
+        if not isinstance(res, LLMResponse):
+            raise TypeError("The LLM provider returned a stream for a non-streaming planning request.")
 
         content = str(res.content).strip()
         if "```json" in content:
@@ -257,6 +248,8 @@ Respond ONLY with valid JSON conforming to:
             user_key=user_key,
             allow_shared_fallback=allow_shared_fallback,
         )
+        if not isinstance(res, LLMResponse):
+            raise TypeError("The LLM provider returned a stream for a non-streaming narration request.")
 
         content = str(res.content).strip()
         if "```json" in content:
@@ -310,49 +303,23 @@ Respond ONLY with valid JSON conforming to:
         is_live = (settings.llm_provider != "mock" and settings.app_env != "test") or (
             user_key is not None and getattr(user_key, "status", None) == "active"
         )
+        if settings.app_env.lower() == "production" and not is_live:
+            yield AgentEvent(
+                event_type="error", trace_id=trace_id,
+                payload={"message": "No real AI provider is available. Configure a provider key before asking questions."},
+            )
+            yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
+            return
 
         # Step 1: Context and Entity Resolution
         resolved_question, extracted_entities = self.context_resolver.resolve(question, memory)
 
-        # Step 2: Cache Lookup for identical verified questions (Rule P2)
-        cache_key = self.cache.generate_cache_key(resolved_question)
-        cached_result = self.cache.get(cache_key)
-        if cached_result:
-            yield AgentEvent(
-                event_type="route",
-                trace_id=trace_id,
-                payload={"lane": "cache_hit", "confidence": 1.0, "reason": "Verified semantic cache match"},
-            )
-            yield AgentEvent(
-                event_type="verify",
-                trace_id=trace_id,
-                payload={"confidence": "High", "reasons": ["Answer retrieved directly from verified cache"]},
-            )
-            if cached_result.get("chart_spec"):
-                yield AgentEvent(event_type="chart", trace_id=trace_id, payload={"chart_spec": cached_result["chart_spec"]})
-            yield AgentEvent(
-                event_type="final",
-                trace_id=trace_id,
-                payload={**cached_result, "cached": True},
-            )
-            yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "success", "cached": True})
-            return
-
         # Step 3: Intent Routing
         route = self.router.route(resolved_question)
-        yield AgentEvent(
-            event_type="route",
-            trace_id=trace_id,
-            payload={
-                "lane": route.lane,
-                "confidence": route.confidence,
-                "reason": route.reason,
-                "resolved_question": resolved_question,
-            },
-        )
 
         # Handle Clarify Lane (ambiguous input -> ask 1 precise question with tappable options)
         if route.lane == "clarify":
+            yield AgentEvent(event_type="route", trace_id=trace_id, payload={"lane": route.lane, "confidence": route.confidence, "reason": route.reason, "resolved_question": resolved_question})
             yield AgentEvent(
                 event_type="final",
                 trace_id=trace_id,
@@ -370,6 +337,23 @@ Respond ONLY with valid JSON conforming to:
 
         # Prepare Per-Tenant Isolated Warehouse & Tools
         db_path, allowed_tables = ensure_user_warehouse(user_id)
+        if not allowed_tables:
+            yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "Upload a dataset before asking a question."})
+            yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
+            return
+        schema_summary = _get_table_schema_summary(db_path, allowed_tables)
+        schema_hash = hashlib.sha256(f"{user_id}:{schema_summary}".encode()).hexdigest()
+        cache_key = self.cache.generate_cache_key(resolved_question, schema_hash)
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            yield AgentEvent(event_type="route", trace_id=trace_id, payload={"lane": "cache_hit", "confidence": 1.0, "reason": "Verified tenant schema cache match"})
+            yield AgentEvent(event_type="verify", trace_id=trace_id, payload={"confidence": "High", "reasons": ["Answer retrieved from verified cache for the current tenant schema"]})
+            if cached_result.get("chart_spec"):
+                yield AgentEvent(event_type="chart", trace_id=trace_id, payload={"chart_spec": cached_result["chart_spec"]})
+            yield AgentEvent(event_type="final", trace_id=trace_id, payload={**cached_result, "cached": True})
+            yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "success", "cached": True})
+            return
+        yield AgentEvent(event_type="route", trace_id=trace_id, payload={"lane": route.lane, "confidence": route.confidence, "reason": route.reason, "resolved_question": resolved_question})
         tools_registry: dict[str, Any] = {
             "sql_tool": SQLTool(db_path=db_path, allowed_tables=allowed_tables),
             "pandas_tool": PandasTool(),
@@ -395,10 +379,21 @@ Respond ONLY with valid JSON conforming to:
                 )
             except Exception as exc:
                 logger.warn("llm_planning_failed_fallback_deterministic", error=str(exc))
+                if settings.app_env.lower() == "production":
+                    yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while planning this analysis."})
+                    yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
+                    return
                 dag = None
 
         if dag is None:
-            dag = self.planner.plan(resolved_question, route.lane)
+            schemas: dict[str, list[str]] = {}
+            con = duckdb.connect(db_path, read_only=True)
+            try:
+                for table in allowed_tables:
+                    schemas[table] = [str(column[0]) for column in con.execute(f'DESCRIBE "{table}"').fetchall()]
+            finally:
+                con.close()
+            dag = self.planner.plan(resolved_question, route.lane, allowed_tables, schemas)
 
         yield AgentEvent(
             event_type="plan",
@@ -471,6 +466,10 @@ Respond ONLY with valid JSON conforming to:
                 )
             except Exception as exc:
                 logger.warn("llm_narration_failed_fallback_deterministic", error=str(exc))
+                if settings.app_env.lower() == "production":
+                    yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while preparing the answer."})
+                    yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
+                    return
                 draft_narrative = None
 
         if draft_narrative is None:
@@ -488,7 +487,9 @@ Respond ONLY with valid JSON conforming to:
         )
 
         # Apply verification sanitization and confidence tier
-        if verification.sanitized_answer:
+        # Code is executable evidence, not a prose claim. Preserve the exact tool code
+        # recorded in the ledger; the verifier still checks and scores prose separately.
+        if verification.sanitized_answer and route.lane != "code_request":
             draft_narrative.direct_answer = verification.sanitized_answer
         draft_narrative.confidence = verification.confidence
 
@@ -523,7 +524,7 @@ Respond ONLY with valid JSON conforming to:
 
         # Cache only verified, non-Low confidence answers (Rule P2)
         if verification.confidence != "Low":
-            self.cache.put(resolved_question, draft_narrative.model_dump(), confidence=verification.confidence)
+            self.cache.put(resolved_question, draft_narrative.model_dump(), confidence=verification.confidence, schema_hash=schema_hash)
 
         # Step 8: Completion event
         total_time_ms = (time.perf_counter() - start_time) * 1000.0

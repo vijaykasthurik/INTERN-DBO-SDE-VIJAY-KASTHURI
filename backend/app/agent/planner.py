@@ -82,9 +82,26 @@ class PlanDAG(BaseModel):
 class ExecutionPlanner:
     """Plans execution DAGs for analytical tasks based on query intent."""
 
-    def plan(self, question: str, lane: str) -> PlanDAG:
+    def plan(self, question: str, lane: str, allowed_tables: list[str] | None = None, schemas: dict[str, list[str]] | None = None) -> PlanDAG:
         """Construct parallelizable step DAG corresponding to the query lane."""
         q_lower = question.lower()
+
+        # Questions about uploaded files must inspect each current table independently.
+        if any(phrase in q_lower for phrase in ("what is in", "what's in", "explain each file", "explain each dataset", "describe these files", "overview of these files")):
+            tables = allowed_tables or []
+            steps = []
+            for index, table in enumerate(tables, start=1):
+                column_names = (schemas or {}).get(table, [])
+                columns_literal = ", ".join(column_names).replace("'", "''")
+                table_literal = table.replace("'", "''")
+                steps.append(PlanStep(
+                    id=f"overview_{index}", tool="sql_tool",
+                    description=f"Count and inspect the schema of uploaded table {table}",
+                    parameters={"sql": f"SELECT '{table_literal}' AS dataset_name, COUNT(*) AS row_count, '{columns_literal}' AS columns FROM \"{table}\""},
+                ))
+            dag = PlanDAG(steps=steps)
+            dag.validate_dag()
+            return dag
 
         # Lane: code_request ("generate SQL for this analysis")
         if lane == "code_request":

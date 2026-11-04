@@ -15,6 +15,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card"
 import { ProgressRing } from "../components/ui/ProgressRing";
 import { Badge } from "../components/ui/Badge";
 import { EmptyState } from "../components/ui/EmptyState";
+import { Dialog } from "../components/ui/Dialog";
+import { api } from "../lib/api";
+import type { Dataset } from "../lib/api";
 import { useDatasetStore } from "../stores/datasetStore";
 
 export const DatasetsPage: React.FC = () => {
@@ -33,6 +36,15 @@ export const DatasetsPage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isQualityExpanded, setIsQualityExpanded] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Dataset | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [previewRows, setPreviewRows] = useState<Array<Record<string, unknown>>>([]);
+  const [previewColumns, setPreviewColumns] = useState<string[]>([]);
+  const [previewOffset, setPreviewOffset] = useState(0);
+  const [previewTotal, setPreviewTotal] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,8 +108,39 @@ export const DatasetsPage: React.FC = () => {
   const qualityScore = Math.round(
     selectedDataset?.quality_score ??
       selectedDataset?.quality_report?.overall_score ??
-      94
+      0
   );
+
+  const loadPreview = async (datasetId: string | number, offset: number) => {
+    setPreviewLoading(true);
+    setActionError(null);
+    try {
+      const page = await api.datasets.rows(datasetId, offset, 25);
+      setPreviewRows(page.rows);
+      setPreviewColumns(page.columns);
+      setPreviewOffset(page.offset);
+      setPreviewTotal(page.total_rows);
+      setPreviewOpen(true);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Unable to load dataset rows.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setActionError(null);
+    try {
+      await deleteDataset(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Dataset deletion failed.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const issues = selectedDataset?.quality_summary?.issues || [];
   const dupCount =
@@ -190,6 +233,7 @@ export const DatasetsPage: React.FC = () => {
           <span>{uploadError}</span>
         </motion.div>
       )}
+      {actionError && <div role="alert" className="mt-4 p-3 rounded-16 bg-rose-50 border border-rose-100 text-rose-700 text-sm">{actionError}</div>}
 
       {/* MAIN DATASET WORKSPACE: LIST & INSPECTOR */}
       {datasets.length === 0 && !isLoading ? (
@@ -254,18 +298,17 @@ export const DatasetsPage: React.FC = () => {
                     <Badge variant="neutral" size="sm">DuckDB Staged</Badge>
                   </div>
                   <p className="text-xs text-ink-muted mt-1">
-                    Ingested{" "}
-                    {new Date(
-                      selectedDataset.created_at || Date.now()
-                    ).toLocaleDateString()}{" "}
-                    • {(((selectedDataset.file_size || 0)) / 1024).toFixed(1)} KB
+                    {selectedDataset.row_count.toLocaleString()} rows • {selectedDataset.column_count} columns
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => void loadPreview(selectedDataset.id, 0)} disabled={previewLoading}>
+                    {previewLoading ? "Loading rows..." : "Preview Rows"}
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => deleteDataset(selectedDataset.id)}
+                    onClick={() => setDeleteTarget(selectedDataset)}
                     className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1.5" />
@@ -421,6 +464,32 @@ export const DatasetsPage: React.FC = () => {
           )}
         </div>
       )}
+      <Dialog isOpen={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} title="Delete dataset">
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">Delete {deleteTarget?.name} and its analytical table, metadata, and dependent cached results?</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="danger" onClick={() => void confirmDelete()} disabled={deleting}>{deleting ? "Deleting..." : "Delete dataset"}</Button>
+          </div>
+        </div>
+      </Dialog>
+      <Dialog isOpen={previewOpen} onClose={() => setPreviewOpen(false)} title={`${selectedDataset?.name || "Dataset"} rows`}>
+        <div className="space-y-4">
+          <div className="max-h-[55vh] overflow-auto border border-hairline rounded-12">
+            <table className="min-w-full divide-y divide-hairline text-left text-xs font-mono">
+              <thead className="bg-surface sticky top-0"><tr>{previewColumns.map((column) => <th key={column} className="px-3 py-2">{column}</th>)}</tr></thead>
+              <tbody>{previewRows.map((row, index) => <tr key={index} className="border-t border-hairline">{previewColumns.map((column) => <td key={column} className="px-3 py-2">{String(row[column] ?? "")}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-between text-xs text-ink-muted">
+            <span>{previewTotal.toLocaleString()} rows total</span>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" disabled={previewOffset === 0 || previewLoading} onClick={() => selectedDataset && void loadPreview(selectedDataset.id, Math.max(0, previewOffset - 25))}>Previous</Button>
+              <Button variant="secondary" size="sm" disabled={previewOffset + previewRows.length >= previewTotal || previewLoading} onClick={() => selectedDataset && void loadPreview(selectedDataset.id, previewOffset + 25)}>Next</Button>
+            </div>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

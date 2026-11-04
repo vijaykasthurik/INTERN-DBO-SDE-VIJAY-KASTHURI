@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Copy, Check, Terminal, Table as TableIcon, ShieldAlert } from "lucide-react";
+import { Copy, Check, Terminal, Table as TableIcon, ShieldAlert, Play } from "lucide-react";
 import { Drawer } from "../../components/ui/Drawer";
 import { Tabs } from "../../components/ui/Tabs";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import type { EvidenceEntry } from "../../lib/api";
+import { api } from "../../lib/api";
 
 export interface EvidenceDrawerProps {
   isOpen: boolean;
@@ -25,6 +26,9 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string>("sql");
   const [copied, setCopied] = useState<boolean>(false);
+  const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [runResult, setRunResult] = useState<Awaited<ReturnType<typeof api.chat.executeSQL>> | null>(null);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -32,23 +36,32 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const currentSql =
-    sqlCode ||
-    entries.find((e) => e.tool === "sql_tool")?.code ||
-    "SELECT * FROM sales LIMIT 10;";
+  const sqlEntry = entries.find((e) => e.tool === "sql_tool");
+  const currentSql = sqlCode || sqlEntry?.code || "";
 
   const currentPandas =
-    pandasCode ||
-    entries.find((e) => e.tool === "pandas_tool")?.code ||
-    "# Pandas analytical equivalent\ndf.groupby('region')['revenue'].sum()";
+    pandasCode || entries.find((e) => e.tool === "pandas_tool")?.code || "";
 
-  const firstEntry = entries[0];
   let previewRows: Array<Record<string, unknown>> = [];
-  if (firstEntry && Array.isArray(firstEntry.result_preview)) {
-    previewRows = firstEntry.result_preview as Array<Record<string, unknown>>;
+  if (sqlEntry && Array.isArray(sqlEntry.result_preview)) {
+    previewRows = sqlEntry.result_preview as Array<Record<string, unknown>>;
   }
 
   const columns = previewRows.length > 0 ? Object.keys(previewRows[0]) : [];
+
+  const runSql = async () => {
+    if (!currentSql) return;
+    setRunning(true);
+    setRunError(null);
+    try {
+      setRunResult(await api.chat.executeSQL(currentSql));
+    } catch (err: unknown) {
+      setRunResult(null);
+      setRunError(err instanceof Error ? err.message : "SQL execution failed.");
+    } finally {
+      setRunning(false);
+    }
+  };
 
   return (
     <Drawer
@@ -90,6 +103,10 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span>Executed against read-only in-memory DuckDB database</span>
+              <div className="flex items-center gap-1">
+              <Button variant="secondary" size="sm" onClick={() => void runSql()} disabled={!currentSql || running} className="h-7 px-2 text-xs">
+                <Play className="w-3.5 h-3.5 mr-1" />{running ? "Running..." : "Run SQL"}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -106,10 +123,12 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                   </>
                 )}
               </Button>
+              </div>
             </div>
-            <pre className="p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed">
-              <code>{currentSql}</code>
-            </pre>
+            {currentSql ? <pre className="p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed"><code>{currentSql}</code></pre> : <p className="p-4 text-xs text-ink-muted bg-surface rounded-16">No SQL query was executed for this answer.</p>}
+            {runError && <p role="alert" className="text-xs text-rose-700">{runError}</p>}
+            {runResult && <p className="text-xs text-emerald-700">Validated query completed in {runResult.runtime_ms}ms and returned {runResult.row_count} rows.</p>}
+            {runResult && <div className="max-h-48 overflow-auto border border-hairline rounded-12"><table className="min-w-full text-xs font-mono"><thead><tr>{runResult.columns.map((column) => <th key={column} className="px-2 py-1 text-left bg-surface">{column}</th>)}</tr></thead><tbody>{runResult.rows.slice(0, 20).map((row, index) => <tr key={index} className="border-t border-hairline">{runResult.columns.map((column) => <td key={column} className="px-2 py-1">{String(row[column] ?? "")}</td>)}</tr>)}</tbody></table></div>}
           </div>
         )}
 
@@ -135,9 +154,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                 )}
               </Button>
             </div>
-            <pre className="p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed">
-              <code>{currentPandas}</code>
-            </pre>
+            {currentPandas ? <pre className="p-4 bg-slate-950 text-slate-100 rounded-16 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed"><code>{currentPandas}</code></pre> : <p className="p-4 text-xs text-ink-muted bg-surface rounded-16">No Pandas code was executed for this answer.</p>}
           </div>
         )}
 

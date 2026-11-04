@@ -197,7 +197,10 @@ def run_evaluation() -> dict:
 
                 if expected_top is not None:
                     exp_str = str(expected_top)
-                    is_passed = exp_str.lower() in direct_ans.lower()
+                    # Narrator formats large grounded values with digit-group separators;
+                    # compare numeric tokens independently of presentation formatting.
+                    answer_comparable = direct_ans.replace(",", "").lower()
+                    is_passed = exp_str.lower() in answer_comparable
                     detail = f"Found expected '{exp_str}'" if is_passed else f"Missing '{exp_str}'"
                 elif expected_root:
                     is_passed = "emea" in direct_ans.lower() or "hardware" in direct_ans.lower() or "volume" in direct_ans.lower()
@@ -268,7 +271,7 @@ def write_results_markdown(scorecard: dict, path: Path) -> None:
         "",
         "| Metric | Target | Realized | Status |",
         "| :--- | :--- | :--- | :--- |",
-        f"| **Execution Accuracy** | 100.0% | **{scorecard['execution_accuracy_pct']}%** | PASS |",
+        f"| **Execution Accuracy** | 100.0% | **{scorecard['execution_accuracy_pct']}%** | {'PASS' if scorecard['execution_accuracy_pct'] == 100.0 else 'FAIL'} |",
         f"| **Total Benchmarks** | >= 30 | **{scorecard['total_questions']}** | PASS |",
         f"| **Verifier Pass Rate** | >= 95.0% | **{scorecard['verifier_pass_rate_pct']}%** | PASS |",
         f"| **Average Latency** | < 1500ms | **{scorecard['average_latency_ms']} ms** | PASS |",

@@ -1,29 +1,25 @@
-# Autocommit daemon for Lumen (PowerShell / Windows)
-param(
-    [int]$Interval = 1800
-)
+param([int]$Interval = 1800)
 
-Write-Host "Starting Lumen autocommit loop (interval: ${Interval}s)..."
-
+$ErrorActionPreference = "Stop"
 while ($true) {
     Start-Sleep -Seconds $Interval
-
-    $status = git status --porcelain
-    if ($status) {
-        # Secret scan check
-        $diff = git diff HEAD
-        if ($diff -match '(sk-[a-zA-Z0-9]{32,}|ghp_[a-zA-Z0-9]{36}|AIzaSy[a-zA-Z0-9_-]{33})') {
-            Write-Warning "[autocommit] Potential API secret pattern detected in git diff! Commit cancelled."
+    $branch = (git branch --show-current).Trim()
+    if ($branch -ne "main") {
+        Write-Warning "[autocommit] Refusing to commit outside main."
+        continue
+    }
+    git add -A
+    if (-not (git diff --cached --quiet)) {
+        $paths = git diff --cached --name-only
+        $forbidden = $paths | Where-Object { $_ -match '(^|/)(\.env($|\.)|node_modules/|\.venv/|venv/|dist/|build/)' -or $_ -match '^(data|backend/data|frontend/data)/' }
+        $staged = git diff --cached --no-ext-diff --unified=0
+        $secretPattern = '(?i)(sk-[a-z0-9]{32,}|ghp_[a-z0-9]{36}|AIzaSy[a-z0-9_-]{33}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
+        if ($forbidden -or $staged -match $secretPattern) {
+            Write-Warning "[autocommit] Refusing checkpoint: protected paths or secret-like content detected."
             continue
         }
-
         $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-        Write-Host "[autocommit] [$timestamp] Committing checkpoint..."
-        git add -A
         git commit -m "chore(auto): checkpoint $timestamp"
-        git push origin main
-    } else {
-        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-        Write-Host "[autocommit] [$timestamp] No changes detected."
+        if ($LASTEXITCODE -eq 0) { git push origin main }
     }
 }

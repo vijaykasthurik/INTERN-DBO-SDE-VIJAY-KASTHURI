@@ -97,9 +97,21 @@ class StepExecutor:
 
                     elif step.tool == "pandas_tool":
                         code_str = step.parameters.get("code", "result = {'status': 'ok'}")
+                        dataframes: dict[str, Any] = {}
+                        sql_tool = self.tools_registry.get("sql_tool")
+                        if sql_tool is not None and hasattr(sql_tool, "db_path"):
+                            import duckdb
+                            allowed_tables: set[str] = set(getattr(sql_tool.validator, "allowed_tables", set()))
+                            table = "sales" if "sales" in allowed_tables else next(iter(sorted(allowed_tables)), None)
+                            if table:
+                                con = duckdb.connect(sql_tool.db_path, read_only=True)
+                                try:
+                                    dataframes["df"] = con.execute(f'SELECT * FROM "{table}"').df()
+                                finally:
+                                    con.close()
                         loop = asyncio.get_running_loop()
                         res = await loop.run_in_executor(
-                            None, tool_instance.execute_script, code_str, {}
+                            None, tool_instance.execute_script, code_str, dataframes
                         )
                         result_preview = res
                         row_count = len(res) if isinstance(res, (list, dict)) else 1
@@ -135,23 +147,34 @@ class StepExecutor:
                     elif step.tool == "anomaly_tool":
                         import pandas as pd
                         df = pd.DataFrame()
-                        if "sql_tool" in self.tools_registry and hasattr(self.tools_registry["sql_tool"], "db_path"):
-                            db_p = self.tools_registry["sql_tool"].db_path
-                            try:
-                                import duckdb
+                        sql_tool = self.tools_registry.get("sql_tool")
+                        if sql_tool is not None and hasattr(sql_tool, "db_path"):
+                            db_p = sql_tool.db_path
+                            import duckdb
+                            tables = sorted(getattr(sql_tool.validator, "allowed_tables", set()))
+                            if tables:
                                 con = duckdb.connect(db_p, read_only=True)
-                                df = con.execute("SELECT * FROM sales;").df()
-                                con.close()
-                            except Exception:
-                                pass
+                                try:
+                                    df = con.execute(f'SELECT * FROM "{tables[0]}"').df()
+                                finally:
+                                    con.close()
                         if df.empty:
                             for prev_entry in ledger.entries:
                                 if isinstance(prev_entry.result_preview, list) and prev_entry.result_preview:
                                     df = pd.DataFrame(prev_entry.result_preview)
                                     break
 
-                        target_col = step.parameters.get("target_column") or ("unit_price" if "unit_price" in df.columns else ("revenue" if "revenue" in df.columns else "unit_price"))
-                        id_col = step.parameters.get("id_column") or ("order_id" if "order_id" in df.columns else "id")
+                        numeric_cols = list(df.select_dtypes(include="number").columns)
+                        target_col = step.parameters.get("target_column") or next(
+                            (name for name in ("revenue", "unit_price", "amount", "price") if name in numeric_cols),
+                            numeric_cols[0] if numeric_cols else None,
+                        )
+                        if target_col is None:
+                            raise ValueError("No numeric column is available for anomaly detection.")
+                        id_col = step.parameters.get("id_column") or next(
+                            (name for name in ("order_id", "id") if name in df.columns),
+                            df.columns[0] if len(df.columns) else "id",
+                        )
                         res = tool_instance.detect_anomalies(df, target_column=target_col, id_column=id_col)
                         result_preview = res
                         row_count = res.get("summary", {}).get("outliers_detected", len(res.get("outliers", [])))
@@ -162,15 +185,27 @@ class StepExecutor:
 
                     elif step.tool == "forecast_tool":
                         rows = []
-                        if "sql_tool" in self.tools_registry and hasattr(self.tools_registry["sql_tool"], "db_path"):
-                            db_p = self.tools_registry["sql_tool"].db_path
-                            try:
-                                import duckdb
+                        sql_tool = self.tools_registry.get("sql_tool")
+                        if sql_tool is not None and hasattr(sql_tool, "db_path"):
+                            db_p = sql_tool.db_path
+                            import duckdb
+                            tables = sorted(getattr(sql_tool.validator, "allowed_tables", set()))
+                            if tables:
                                 con = duckdb.connect(db_p, read_only=True)
-                                rows = con.execute("SELECT SUBSTR(CAST(order_date AS DATE)::VARCHAR, 1, 7) AS month, SUM(quantity * unit_price * (1 - discount)) AS revenue FROM sales GROUP BY month ORDER BY month;").df().to_dict(orient="records")
-                                con.close()
-                            except Exception:
-                                pass
+                                try:
+                                    columns = con.execute(f'DESCRIBE SELECT * FROM "{tables[0]}"').fetchall()
+                                    names = [str(column[0]) for column in columns]
+                                    time_key = next((name for name in names if any(token in name.lower() for token in ("date", "time", "month"))), None)
+                                    value_key = next(
+                                        (name for name in names if name.lower() in {"revenue", "amount", "sales", "total", "price"}),
+                                        next((str(column[0]) for column in columns if "INT" in str(column[1]).upper() or "DOUBLE" in str(column[1]).upper() or "DECIMAL" in str(column[1]).upper()), None),
+                                    )
+                                    if time_key and value_key:
+                                        rows = con.execute(
+                                            f'SELECT CAST("{time_key}" AS VARCHAR) AS period, SUM("{value_key}") AS value FROM "{tables[0]}" GROUP BY period ORDER BY period'
+                                        ).df().to_dict(orient="records")
+                                finally:
+                                    con.close()
                         if not rows:
                             for prev_entry in ledger.entries:
                                 if isinstance(prev_entry.result_preview, list) and prev_entry.result_preview:
@@ -178,7 +213,10 @@ class StepExecutor:
                                     break
 
                         horizon = step.parameters.get("horizon", 3)
-                        res = tool_instance.generate_forecast(history=rows, periods_ahead=horizon, value_key="revenue")
+                        if not rows:
+                            raise ValueError("No time series could be derived from the uploaded data.")
+                        value_key = "value" if "value" in rows[0] else "revenue"
+                        res = tool_instance.generate_forecast(history=rows, periods_ahead=horizon, value_key=value_key)
                         result_preview = res
                         row_count = len(res.get("predictions", []))
                         code = f"tool.generate_forecast(history, periods_ahead={horizon})"

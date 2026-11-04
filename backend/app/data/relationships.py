@@ -1,6 +1,7 @@
 """Relationship graph detector: infers foreign keys and join paths across user tables."""
 
 from typing import Any
+
 import duckdb
 
 
@@ -66,17 +67,13 @@ class RelationshipDetector:
                     t1, t2 = table_names[i], table_names[j]
                     cols1, cols2 = table_cols[t1], table_cols[t2]
 
-                    for c1, type1 in cols1:
-                        for c2, type2 in cols2:
+                    for c1, _type1 in cols1:
+                        for c2, _type2 in cols2:
                             # 1. Name match / suffix match
                             name_match = False
                             c1_l, c2_l = c1.lower(), c2.lower()
 
-                            if c1_l == c2_l:
-                                name_match = True
-                            elif c1_l.endswith("_id") and c2_l == "id":
-                                name_match = True
-                            elif c2_l.endswith("_id") and c1_l == "id":
+                            if c1_l == c2_l or c1_l.endswith("_id") and c2_l == "id" or c2_l.endswith("_id") and c1_l == "id":
                                 name_match = True
 
                             if not name_match:

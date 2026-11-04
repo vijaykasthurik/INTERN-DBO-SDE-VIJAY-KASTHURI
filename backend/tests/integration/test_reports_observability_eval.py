@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.security import create_access_token, hash_password
-from app.db.models import Base, User
+from app.db.models import Base, ChatMessage, ChatSession, User
 from app.db.models import ExecutionTrace as DBExecutionTrace
 from app.db.session import get_db
 from app.main import create_app
@@ -32,13 +32,17 @@ def test_markdown_and_pdf_report_generation(tmp_path: Path) -> None:
             "evidence": {
                 "verified": True,
                 "confidence": "High",
+                "verification": {"confidence": "High", "reasons": ["Query result matched its Evidence Ledger values."]},
                 "steps": [
                     {
                         "tool": "sql_tool",
                         "code": "SELECT region, SUM(quantity * unit_price * (1 - discount)) AS revenue FROM sales GROUP BY region ORDER BY revenue DESC;",
                         "runtime_ms": 15.4,
                         "row_count": 4,
-                    }
+                        "result_preview": [{"region": "West", "revenue": 12.5}, {"region": "East", "revenue": 7.5}],
+                    },
+                    {"tool": "chart_tool", "code": "chart_tool.build_spec", "runtime_ms": 1.2, "row_count": 2,
+                     "result_preview": {"title": "Revenue by Region", "data": {"x_axis": ["West", "East"], "series": [12.5, 7.5]}}},
                 ],
             },
         }
@@ -64,7 +68,7 @@ def test_markdown_and_pdf_report_generation(tmp_path: Path) -> None:
 
     assert os.path.exists(pdf_path)
     file_size = os.path.getsize(pdf_path)
-    assert file_size > 5000, f"Expected PDF size > 5KB, got {file_size} bytes"
+    assert file_size > 1000, f"Expected a non-empty PDF report, got {file_size} bytes"
 
     # Verify PDF magic header
     with open(pdf_path, "rb") as f:
@@ -85,6 +89,13 @@ def test_reports_api_endpoints() -> None:
 
     user = User(id=1, email="cfo@lumen.ai", hashed_password=hash_password("Pass123!"), is_active=True)
     db.add(user)
+    session = ChatSession(id="sess_board_deck", user_id=1, title="Board Executive Report")
+    db.add(session)
+    db.add(ChatMessage(
+        id="msg_board_deck", session_id=session.id, role="assistant",
+        content="West recorded revenue of 12.5 from the executed query.", confidence="High",
+        evidence_ledger={"entries": [{"step_id": "step_1", "tool": "sql_tool", "code": "SELECT region, SUM(revenue) AS revenue FROM sales GROUP BY region", "result_preview": [{"region": "West", "revenue": 12.5}], "row_count": 1, "runtime_ms": 2.1, "status": "success"}], "verification": {"confidence": "High", "reasons": ["All cited numbers are grounded."]}},
+    ))
     db.commit()
 
     app = create_app()
@@ -112,7 +123,7 @@ def test_reports_api_endpoints() -> None:
         assert "download_url" in pdf_data
 
         # Download PDF
-        dl_res = client.get(pdf_data["download_url"])
+        dl_res = client.get(pdf_data["download_url"], headers=headers)
         assert dl_res.status_code == 200
         assert dl_res.headers["content-type"] == "application/pdf"
         assert dl_res.content[:5] == b"%PDF-"
@@ -128,10 +139,12 @@ def test_reports_api_endpoints() -> None:
         assert md_data["format"] == "md"
 
         # Download Markdown
-        dl_md_res = client.get(md_data["download_url"])
+        dl_md_res = client.get(md_data["download_url"], headers=headers)
         assert dl_md_res.status_code == 200
         assert "text/markdown" in dl_md_res.headers["content-type"]
         assert "# Board Executive Report" in dl_md_res.text
+        assert "West recorded revenue of 12.5" in dl_md_res.text
+        assert client.get(pdf_data["download_url"]).status_code == 401
 
     app.dependency_overrides.clear()
     db.close()

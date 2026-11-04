@@ -27,33 +27,14 @@ interface MetricItem {
   description: string;
 }
 
-const DEFAULT_METRICS: MetricItem[] = [
-  {
-    id: "m_rev",
-    name: "net_revenue",
-    expression: "SUM(quantity * unit_price * (1.0 - discount))",
-    description: "Net realized revenue accounting for customer-level discounts",
-  },
-  {
-    id: "m_aov",
-    name: "average_order_value",
-    expression: "SUM(total_amount) / COUNT(DISTINCT order_id)",
-    description: "Average gross monetary value per transaction header",
-  },
-  {
-    id: "m_margin",
-    name: "gross_margin_pct",
-    expression: "(SUM(revenue) - SUM(cost)) / SUM(revenue) * 100",
-    description: "Gross margin percentage across consolidated product lines",
-  },
-];
-
 export const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
   const { connection, sharedPool, fetchConnection, fetchSharedStatus } = useAIConnectionStore();
   const [providersData, setProvidersData] = useState<SystemProvidersResponse | null>(null);
   const [healthStatus, setHealthStatus] = useState<string>("checking...");
-  const [metrics, setMetrics] = useState<MetricItem[]>(DEFAULT_METRICS);
+  const [metrics, setMetrics] = useState<MetricItem[]>([]);
+  const [datasetIds, setDatasetIds] = useState<Array<string | number>>([]);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [newMetricName, setNewMetricName] = useState("");
   const [newMetricExpr, setNewMetricExpr] = useState("");
   const [newMetricDesc, setNewMetricDesc] = useState("");
@@ -66,25 +47,18 @@ export const SettingsPage: React.FC = () => {
     api.admin
       .providers()
       .then((data) => setProvidersData(data))
-      .catch(() => {
-        // Fallback mock diagnostics
-        setProvidersData({
-          primary_provider: "mock",
-          fallback_chain: ["mock"],
-          providers: {
-            mock: { available: true, type: "rule-based", latency_ms: 1.2 },
-            gemini: { available: false, type: "remote" },
-            groq: { available: false, type: "remote" },
-            openrouter: { available: false, type: "remote" },
-            openai_compat: { available: false, type: "remote" },
-          },
-        });
-      });
+      .catch((err: unknown) => setSettingsError(err instanceof Error ? err.message : "Provider diagnostics are unavailable."));
 
     api.admin
       .health()
       .then((h) => setHealthStatus(h.status))
-      .catch(() => setHealthStatus("healthy"));
+      .catch(() => setHealthStatus("unavailable"));
+
+    api.datasets.list().then(async (datasets) => {
+      setDatasetIds(datasets.map((dataset) => dataset.id));
+      const definitions = await Promise.all(datasets.map((dataset) => api.datasets.listMetrics(dataset.id)));
+      setMetrics(definitions.flatMap((rows, index) => rows.map((metric) => ({ ...metric, id: `${datasets[index].id}:${metric.id}`, description: metric.description || "" }))));
+    }).catch((err: unknown) => setSettingsError(err instanceof Error ? err.message : "Metric definitions are unavailable."));
   };
 
   useEffect(() => {
@@ -97,24 +71,20 @@ export const SettingsPage: React.FC = () => {
     e.preventDefault();
     if (!newMetricName || !newMetricExpr) return;
 
+    setSettingsError(null);
     try {
-      // Send metric to backend if dataset available, else store locally
-      await api.datasets.updateMetric(1, {
+      const datasetId = datasetIds[0];
+      if (datasetId === undefined) throw new Error("Upload a dataset before adding a metric definition.");
+      const saved = await api.datasets.updateMetric(datasetId, {
         name: newMetricName,
         expression: newMetricExpr,
         description: newMetricDesc,
       });
-    } catch {
-      // Local fallback
+      setMetrics((current) => [...current.filter((metric) => metric.name !== saved.name), { ...saved, id: `${datasetId}:${saved.id}`, description: saved.description || "" }]);
+    } catch (err: unknown) {
+      setSettingsError(err instanceof Error ? err.message : "Metric definition could not be saved.");
+      return;
     }
-
-    const item: MetricItem = {
-      id: `m_${Date.now()}`,
-      name: newMetricName,
-      expression: newMetricExpr,
-      description: newMetricDesc || "Custom user-defined metric definition",
-    };
-    setMetrics([...metrics, item]);
     setNewMetricName("");
     setNewMetricExpr("");
     setNewMetricDesc("");
@@ -123,20 +93,18 @@ export const SettingsPage: React.FC = () => {
 
   const handleClearData = async () => {
     setClearing(true);
+    setSettingsError(null);
     try {
       await api.auth.clearData();
+      setMetrics([]);
+      setDatasetIds([]);
       setClearSuccess(true);
       setTimeout(() => {
         setClearSuccess(false);
         setClearDialogOpen(false);
       }, 2000);
-    } catch {
-      // Fallback response
-      setClearSuccess(true);
-      setTimeout(() => {
-        setClearSuccess(false);
-        setClearDialogOpen(false);
-      }, 2000);
+    } catch (err: unknown) {
+      setSettingsError(err instanceof Error ? err.message : "Data wipeout failed.");
     } finally {
       setClearing(false);
     }
@@ -165,6 +133,7 @@ export const SettingsPage: React.FC = () => {
           <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
           Refresh Status
         </Button>
+      {settingsError && <div role="alert" className="p-3 rounded-16 bg-rose-50 border border-rose-100 text-rose-700 text-sm">{settingsError}</div>}
       </div>
 
       {/* Grid: Provider Health & Security */}
@@ -178,7 +147,7 @@ export const SettingsPage: React.FC = () => {
                 <CardTitle className="text-base">LLM Provider Health & Router</CardTitle>
               </div>
               <Badge variant="accent" size="sm">
-                Primary: {providersData?.primary_provider || "mock"}
+                Primary: {providersData?.primary_provider || "unavailable"}
               </Badge>
             </div>
           </CardHeader>
@@ -233,19 +202,19 @@ export const SettingsPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-ink-muted">Groq Pool Status:</span>
                   <span className="font-semibold text-ink">
-                    {sharedPool?.groq_active_keys ?? 7} of 7 Keys Active
+                    {sharedPool ? `${sharedPool.groq_active_keys} of ${sharedPool.groq_active_keys + sharedPool.groq_cooling_keys} Keys Active` : "Status unavailable"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ink-muted">Hourly Free Quota:</span>
                   <span className="font-mono text-ink">
-                    {sharedPool?.user_hourly_remaining ?? 30} / {sharedPool?.user_hourly_limit ?? 30}
+                    {sharedPool ? `${sharedPool.user_hourly_remaining} / ${sharedPool.user_hourly_limit}` : "Status unavailable"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ink-muted">Personal Key:</span>
                   <span className="font-semibold text-ink">
-                    {connection?.connected ? `${connection.provider_id?.toUpperCase()} (${connection.masked_key})` : "None (Demo Mode)"}
+                    {connection?.connected ? `${connection.provider_id?.toUpperCase()} (${connection.masked_key})` : "Not connected"}
                   </span>
                 </div>
               </div>
@@ -315,13 +284,14 @@ export const SettingsPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <Button size="sm" onClick={() => setIsAddingMetric(true)}>
+            <Button size="sm" onClick={() => setIsAddingMetric(true)} disabled={datasetIds.length === 0}>
               <Plus className="w-3.5 h-3.5 mr-1" />
               Add Metric
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0 space-y-3">
+          {metrics.length === 0 && <p className="text-xs text-ink-muted">{datasetIds.length === 0 ? "Upload a dataset to define business metrics." : "No metric definitions have been saved."}</p>}
           {metrics.map((m) => (
             <div
               key={m.id}
@@ -355,7 +325,7 @@ export const SettingsPage: React.FC = () => {
         <CardContent className="p-0 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
             <div>
-              <p className="font-semibold text-ink">Active Session: {user?.email || "analyst@lumen.ai"}</p>
+              <p className="font-semibold text-ink">Active Session: {user?.email || "Unavailable"}</p>
               <p className="text-ink-muted mt-0.5">
                 Each account operates on an isolated DuckDB file and encrypted metadata store.
               </p>

@@ -1,6 +1,7 @@
 """Data Quality Auditor: Evaluates duplicates, missing values, impossible metrics, and anomalies."""
 
 from typing import Any
+
 import duckdb
 
 

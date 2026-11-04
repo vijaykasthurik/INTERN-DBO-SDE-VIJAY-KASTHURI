@@ -24,8 +24,10 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const datasets = await api.datasets.list();
-      set({ datasets, isLoading: false });
-      if (datasets.length > 0 && !get().selectedDataset) {
+      const selectedId = get().selectedDataset?.id;
+      const selectionExists = datasets.some((dataset) => dataset.id === selectedId);
+      set({ datasets, isLoading: false, selectedDataset: selectionExists ? get().selectedDataset : null });
+      if (datasets.length > 0 && !selectionExists) {
         await get().selectDataset(datasets[0].id);
       }
     } catch (err: unknown) {
@@ -74,9 +76,10 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
       const remaining = get().datasets.filter((d) => d.id !== id);
       set({
         datasets: remaining,
-        selectedDataset: remaining.length > 0 ? remaining[0] : null,
+        selectedDataset: null,
         isLoading: false,
       });
+      if (remaining.length > 0) await get().selectDataset(remaining[0].id);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete dataset";
       set({ isLoading: false, error: msg });

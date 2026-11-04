@@ -9,10 +9,11 @@ class ReportBuilder:
 
     def build_report_data(
         self,
-        session_id: str,
+        session_id: str | None,
         messages: list[dict[str, Any]],
         title: str = "Lumen Executive Analytical Report",
         dataset_name: str = "Enterprise Sales & Operations",
+        dashboard: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Aggregate executive summary, queries, anomalies, and charts into printable report structure."""
         findings: list[dict[str, Any]] = []
@@ -26,6 +27,9 @@ class ReportBuilder:
             evidence = msg.get("evidence", {}) or {}
 
             if role == "assistant":
+                verification = evidence.get("verification", {})
+                confidence = verification.get("confidence", msg.get("confidence", "Unknown"))
+                verified = bool(verification) and confidence in {"High", "Medium"}
                 # Extract SQL queries from evidence
                 steps = evidence.get("steps", [])
                 for s in steps:
@@ -35,66 +39,57 @@ class ReportBuilder:
                             "runtime_ms": s.get("runtime_ms", 0.0),
                             "row_count": s.get("row_count", 0),
                         })
+                    if s.get("tool") == "chart_tool" and s.get("result_preview"):
+                        charts.append(s["result_preview"])
 
                 # Check for anomaly mentions
                 if "outlier" in content.lower() or "anomal" in content.lower():
                     anomalies_detected.append({
                         "finding": content,
-                        "confidence": evidence.get("confidence", "High"),
+                            "confidence": confidence,
                     })
 
                 findings.append({
                     "summary": content[:240] + ("..." if len(content) > 240 else ""),
                     "full_text": content,
-                    "confidence": evidence.get("confidence", "High"),
-                    "verified": evidence.get("verified", True),
+                    "confidence": confidence,
+                    "verified": verified,
                 })
 
-        # Fallback default findings if session had few messages
+        if dashboard:
+            dataset_name = str(dashboard.get("scope_label") or "Selected datasets")
+            for widget in dashboard.get("widgets", []):
+                data = widget.get("data", {})
+                findings.append({
+                    "summary": str(widget.get("title", "Dashboard result")),
+                    "full_text": str(data.get("annotation") or data.get("comparison") or data.get("primary_value") or widget.get("title", "Dashboard result")),
+                    "confidence": "Medium",
+                    "verified": False,
+                })
+                if data.get("sql"):
+                    sql_queries.append({"query": data["sql"], "runtime_ms": data.get("runtime_ms", 0), "row_count": data.get("row_count", 0)})
+                if widget.get("type", "").startswith("chart"):
+                    charts.append(widget)
+
         if not findings:
-            findings.append({
-                "summary": "North America led territorial performance with $25,585,262.08 in net revenue.",
-                "full_text": "North America generated the highest total revenue across 2,268 orders.",
-                "confidence": "High",
-                "verified": True,
-            })
-            sql_queries.append({
-                "query": "SELECT region, SUM(quantity * unit_price * (1 - discount)) AS revenue FROM sales GROUP BY region ORDER BY revenue DESC;",
-                "runtime_ms": 14.2,
-                "row_count": 4,
-            })
+            raise ValueError("A report requires at least one real assistant result or dashboard widget.")
 
         return {
             "title": title,
             "session_id": session_id,
             "dataset_name": dataset_name,
             "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "executive_summary": (
-                "This report synthesizes verified analytical inferences, statistical anomaly detection, "
-                "and cross-checked business metrics produced by the Lumen Autonomous Data Analyst platform. "
-                "All figures cited are computationally grounded in the DuckDB analytical warehouse."
-            ),
-            "data_health": {
-                "score": 98,
-                "status": "Healthy",
-                "rows_audited": 4959,
-                "integrity_checks_passed": 14,
-            },
+            "executive_summary": findings[0]["full_text"],
+            "data_health": None,
             "findings": findings,
             "sql_queries": sql_queries,
-            "anomalies": anomalies_detected or [
-                {"finding": "Detected 5 giant outlier orders with unit prices exceeding 3 standard deviations (ORD-OUT-01 to ORD-OUT-05).", "confidence": "High"}
-            ],
-            "charts": charts or [
-                {
-                    "title": "Revenue by Region",
-                    "type": "bar",
-                    "data": {"North America": 25585262.08, "EMEA": 14679681.14, "APAC": 11565367.82, "LATAM": 2235562.43},
-                }
-            ],
+            "anomalies": anomalies_detected,
+            "charts": charts,
             "verifier_audit": {
-                "cross_method_check": "Passed (SQL vs Pandas parity verified <0.1% delta)",
-                "number_grounding": "100% of cited numbers verified in Evidence Ledger",
-                "join_fanout_risk": "Low (No unconstrained cartesian multiplication detected)",
+                "number_grounding": "See recorded verifier status for each finding.",
+                "confidence_notes": [
+                    {"confidence": finding["confidence"], "verified": finding["verified"]}
+                    for finding in findings
+                ],
             },
         }

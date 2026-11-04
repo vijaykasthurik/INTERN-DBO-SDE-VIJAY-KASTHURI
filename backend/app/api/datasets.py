@@ -3,14 +3,14 @@
 from typing import Any
 
 import duckdb
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError, PermissionDeniedError
 from app.data.ingestion import DataIngestionPipeline
 from app.data.relationships import RelationshipDetector
-from app.db.models import Dataset, MetricDefinition, User
+from app.db.models import CacheEntry, ChatSession, Dataset, MetricDefinition, User
 from app.db.session import get_db
 from app.deps import get_current_user
 
@@ -50,6 +50,19 @@ class MetricResponse(BaseModel):
     name: str
     expression: str
     description: str | None
+
+
+@router.get("/{dataset_id}/metrics", response_model=list[MetricResponse])
+async def list_dataset_metrics(
+    dataset_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[MetricResponse]:
+    """List persisted metric definitions owned by the requested dataset and tenant."""
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == user.id).first()
+    if not dataset:
+        raise NotFoundError(f"Dataset with ID {dataset_id} not found")
+    return [MetricResponse(id=metric.id, name=metric.name, expression=metric.expression, description=metric.description) for metric in dataset.metrics]
 
 
 @router.get("", response_model=list[DatasetDetailResponse])
@@ -144,6 +157,39 @@ async def get_dataset(
     )
 
 
+@router.get("/{dataset_id}/rows")
+async def get_dataset_rows(
+    dataset_id: int,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Return one bounded, server-paginated page of real rows from the tenant warehouse."""
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == user.id).first()
+    if not dataset:
+        raise NotFoundError(f"Dataset with ID {dataset_id} not found")
+    pipeline = DataIngestionPipeline()
+    con = duckdb.connect(pipeline.get_user_db_path(user.id), read_only=True)
+    try:
+        count_result = con.execute(f'SELECT COUNT(*) FROM "{dataset.duckdb_table_name}"').fetchone()
+        total_rows = int(count_result[0]) if count_result else 0
+        result = con.execute(
+            f'SELECT * FROM "{dataset.duckdb_table_name}" LIMIT ? OFFSET ?', [limit, offset]
+        )
+        columns = [item[0] for item in result.description]
+        rows = result.fetchall()
+    finally:
+        con.close()
+    return {
+        "columns": columns,
+        "rows": [dict(zip(columns, row, strict=True)) for row in rows],
+        "offset": offset,
+        "limit": limit,
+        "total_rows": total_rows,
+    }
+
+
 @router.patch("/{dataset_id}/metrics", response_model=MetricResponse)
 async def update_dataset_metric(
     dataset_id: int,
@@ -209,14 +255,24 @@ async def delete_dataset(
     db_path = pipeline.get_user_db_path(user.id)
     table_name = dataset.duckdb_table_name
 
-    # Drop from DuckDB
+    # Drop from the analytical database before committing metadata removal.
+    con = duckdb.connect(db_path)
     try:
-        con = duckdb.connect(db_path)
         con.execute(f'DROP TABLE IF EXISTS "{table_name}";')
+    finally:
         con.close()
-    except Exception:
-        pass
 
+    # Cache entries are currently schema scoped rather than tenant scoped; invalidate them so
+    # no answer computed from the removed table can be returned to any tenant.
+    db.query(CacheEntry).delete(synchronize_session=False)
+    session_ids = [row[0] for row in db.query(ChatSession.id).filter(ChatSession.user_id == user.id).all()]
     db.delete(dataset)
     db.commit()
+    from app.api.chat import _AGENT_ENGINE, _SESSION_MEMORIES
+    from app.api.dashboards import invalidate_dataset_dashboards
+
+    invalidate_dataset_dashboards(user.id, dataset_id)
+    for session_id in session_ids:
+        _SESSION_MEMORIES.pop(session_id, None)
+    _AGENT_ENGINE.cache._store.clear()
     return None

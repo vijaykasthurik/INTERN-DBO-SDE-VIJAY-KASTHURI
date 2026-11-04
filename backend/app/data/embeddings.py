@@ -1,7 +1,7 @@
 """Vector embedding store for semantic search over column names and business terms."""
 
 from typing import Any
-import numpy as np
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 

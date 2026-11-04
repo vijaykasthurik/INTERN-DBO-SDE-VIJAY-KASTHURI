@@ -27,12 +27,13 @@ export interface StreamCallbacks {
   onRoute?: (route: string) => void;
   onPlan?: (plan: Record<string, unknown>) => void;
   onStepStart?: (step: { step_id: string; tool: string; description?: string }) => void;
-  onStepResult?: (result: { step_id: string; status: string; runtime_ms?: number; row_count?: number; result_preview?: unknown }) => void;
+  onStepResult?: (result: { step_id: string; tool: string; code: string; status: string; runtime_ms?: number; row_count?: number; result_preview?: unknown }) => void;
   onRepair?: (repair: { step_id: string; error_type: string; attempt: number }) => void;
   onVerify?: (verification: { status: string; confidence: "High" | "Medium" | "Low"; reasons: string[]; checks: Record<string, boolean> }) => void;
   onChart?: (spec: Record<string, unknown>) => void;
   onToken?: (token: string) => void;
   onProviderSwitch?: (switchInfo: { reason: string; from_provider: string; to_provider: string }) => void;
+  onServerError?: (message: string) => void;
   onFinal?: (finalData: {
     direct_answer: string;
     business_insight?: string;
@@ -154,6 +155,8 @@ export class ChatStreamService {
       case "step_result":
         callbacks.onStepResult?.({
           step_id: String(p.step_id || ""),
+          tool: String(p.tool || ""),
+          code: String(p.code || ""),
           status: String(p.status || "success"),
           runtime_ms: typeof p.runtime_ms === "number" ? p.runtime_ms : undefined,
           row_count: typeof p.row_count === "number" ? p.row_count : undefined,
@@ -208,11 +211,12 @@ export class ChatStreamService {
           to_provider: String(p.to_provider || ""),
         });
         break;
+      case "error":
+        callbacks.onServerError?.(String(p.message || p.error || "Analysis failed."));
+        callbacks.onError?.(new Error(String(p.message || p.error || "Analysis failed.")));
+        break;
       case "done":
         callbacks.onDone?.();
-        break;
-      case "error":
-        callbacks.onError?.(new Error(String(p.error || "Unknown stream error")));
         break;
     }
   }

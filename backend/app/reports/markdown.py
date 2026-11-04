@@ -75,6 +75,19 @@ class MarkdownReportExporter:
         else:
             md_lines.append("*No SQL queries recorded in this session.*")
 
+        charts = report_data.get("charts", [])
+        if charts:
+            md_lines.extend(["## Generated Charts", ""])
+            for chart in charts:
+                chart_data = chart.get("data", {})
+                labels = chart_data.get("x_axis") or [item.get("name") for item in chart_data.get("slices", [])]
+                values = chart_data.get("series") or [item.get("value") for item in chart_data.get("slices", [])]
+                md_lines.extend([f"### {chart.get('title', 'Chart')}", ""])
+                if labels and len(labels) == len(values):
+                    md_lines.extend(["| Category | Computed value |", "| :--- | ---: |"])
+                    md_lines.extend(f"| {label} | {value} |" for label, value in zip(labels, values, strict=True))
+                    md_lines.append("")
+
         md_lines.extend([
             "## Anomaly & Risk Analysis",
             "",

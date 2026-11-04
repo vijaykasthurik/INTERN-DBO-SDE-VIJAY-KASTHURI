@@ -49,6 +49,7 @@ export const WorkspacePage: React.FC = () => {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [inputText, setInputText] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   // Layout state
   const [railOpen, setRailOpen] = useState<boolean>(true);
@@ -90,21 +91,20 @@ export const WorkspacePage: React.FC = () => {
         setActiveSession(newSession);
         setSessions([newSession]);
       }
-    } catch {
-      // Fallback local session
-      const fallbackSession: ChatSession = {
-        id: "sess_local_default",
-        title: "Executive Analysis",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setActiveSession(fallbackSession);
+    } catch (err: unknown) {
+      setActiveSession(null);
+      setWorkspaceError(err instanceof Error ? err.message : "Unable to start an analysis session.");
     }
   };
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
     if (!text || isStreaming) return;
+    if (!activeSession) {
+      setWorkspaceError("Your analysis session is unavailable. Refresh the workspace or sign in again.");
+      return;
+    }
+    setWorkspaceError(null);
 
     if (!textToSend) setInputText("");
 
@@ -131,7 +131,7 @@ export const WorkspacePage: React.FC = () => {
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setIsStreaming(true);
 
-    const sessionId = activeSession?.id || "sess_local_default";
+    const sessionId = activeSession.id;
 
     await streamServiceRef.current.streamMessage(sessionId, text, {
       onRoute: (lane) => {
@@ -172,6 +172,13 @@ export const WorkspacePage: React.FC = () => {
         });
       },
       onStepResult: (result) => {
+        setMessages((prev) => prev.map((message) => message.id === assistantMsgId
+          ? { ...message, evidence: [...(message.evidence || []), {
+              step_id: result.step_id, tool: result.tool, code: result.code,
+              result_preview: result.result_preview, row_count: result.row_count || 0,
+              runtime_ms: result.runtime_ms || 0, status: result.status,
+            }] }
+          : message));
         setTimelineSteps((prev) =>
           prev.map((s) =>
             s.id === result.step_id
@@ -234,6 +241,10 @@ export const WorkspacePage: React.FC = () => {
           prev.map((m) => (m.id === assistantMsgId ? { ...m, isStreaming: false } : m))
         );
       },
+      onServerError: (message) => {
+        setWorkspaceError(message);
+        setMessages((prev) => prev.map((m) => m.id === assistantMsgId ? { ...m, content: message, isStreaming: false } : m));
+      },
       onError: (err) => {
         setIsStreaming(false);
         setMessages((prev) =>
@@ -263,17 +274,7 @@ export const WorkspacePage: React.FC = () => {
     setActiveAuditedNumber(numberClaim);
     setDrawerSql(msg.sql_code);
     setDrawerPandas(msg.pandas_code);
-    setDrawerEntries(
-      timelineSteps.map((s) => ({
-        step_id: s.id,
-        tool: s.tool,
-        code: msg.sql_code || "-- Verified query execution",
-        result_preview: msg.content,
-        row_count: s.row_count || 1,
-        runtime_ms: s.runtime_ms || 12.0,
-        status: s.status === "failed" ? "failed" : "success",
-      }))
-    );
+    setDrawerEntries(msg.evidence || []);
     setDrawerOpen(true);
   };
 
@@ -315,6 +316,8 @@ export const WorkspacePage: React.FC = () => {
               </Button>
             </div>
           </div>
+
+          {workspaceError && <div role="alert" className="mx-6 mt-3 p-3 rounded-16 bg-rose-50 border border-rose-100 text-rose-700 text-xs">{workspaceError}</div>}
 
           {/* BYOK EXPIRY OR PROVIDER SWITCH BANNER */}
           {connection?.connected && (connection.status === "invalid" || connection.status === "quota_exhausted") && (

@@ -90,7 +90,7 @@ export interface EvidenceEntry {
   step_id: string;
   tool: string;
   code: string;
-  result_preview: string;
+  result_preview: unknown;
   row_count: number;
   runtime_ms: number;
   status: string;
@@ -109,6 +109,10 @@ export interface DashboardResponse {
   title: string;
   widget_count: number;
   widgets: DashboardWidget[];
+  scope?: string;
+  scope_label?: string;
+  relationships_used?: string[];
+  explanation?: string;
 }
 
 export interface ReportExportResponse {
@@ -116,6 +120,11 @@ export interface ReportExportResponse {
   format: "pdf" | "md";
   download_url: string;
   title: string;
+}
+
+export interface ReportArtifactItem extends ReportExportResponse {
+  filename: string;
+  created_at: string;
 }
 
 export interface ProviderInfo {
@@ -177,9 +186,21 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     } catch {
       errorData = await response.text();
     }
-    const message =
+    const detail =
       typeof errorData === "object" && errorData !== null && "detail" in errorData
-        ? String((errorData as { detail: unknown }).detail)
+        ? (errorData as { detail: unknown }).detail
+        : undefined;
+    const message = Array.isArray(detail)
+      ? detail.map((item) => {
+          if (typeof item === "string") return item;
+          if (typeof item === "object" && item !== null && "msg" in item) {
+            const location = "loc" in item && Array.isArray(item.loc) ? item.loc.slice(1).join(".") : "";
+            return `${location ? `${location}: ` : ""}${String(item.msg)}`;
+          }
+          return "The server rejected the request.";
+        }).join("; ")
+      : typeof detail === "string"
+        ? detail
         : `Request failed with status ${response.status}`;
     throw new ApiError(message, response.status, errorData);
   }
@@ -280,6 +301,10 @@ export const api = {
   datasets: {
     list: () => request<Dataset[]>("/datasets"),
     get: (id: string | number) => request<Dataset>(`/datasets/${id}`),
+    rows: (id: string | number, offset = 0, limit = 50) =>
+      request<{ columns: string[]; rows: Array<Record<string, unknown>>; offset: number; limit: number; total_rows: number }>(
+        `/datasets/${id}/rows?offset=${offset}&limit=${limit}`
+      ),
     upload: (formData: FormData) =>
       request<{ datasets: Dataset[]; total_files: number }>("/upload", {
         method: "POST",
@@ -306,6 +331,8 @@ export const api = {
           body: JSON.stringify(data),
         }
       ),
+    listMetrics: (datasetId: number | string) =>
+      request<Array<{ id: number; name: string; expression: string; description: string | null }>>(`/datasets/${datasetId}/metrics`),
   },
 
   chat: {
@@ -318,28 +345,51 @@ export const api = {
     getSession: (id: string) => request<ChatSession>(`/chat/sessions/${id}`),
     getEvidence: (messageId: string) =>
       request<EvidenceEntry[]>(`/chat/messages/${messageId}/evidence`),
+    executeSQL: (sql: string) =>
+      request<{ columns: string[]; rows: Array<Record<string, unknown>>; row_count: number; sanitized_sql: string; runtime_ms: number }>(
+        "/chat/execute", { method: "POST", body: JSON.stringify({ sql }) }
+      ),
   },
 
   dashboards: {
-    generate: (title?: string) =>
+    generate: (title?: string, scope: string = "combined") =>
       request<DashboardResponse>("/dashboards/generate", {
         method: "POST",
-        body: JSON.stringify({ title }),
+        body: JSON.stringify({ title, scope }),
       }),
     get: (id: string) => request<DashboardResponse>(`/dashboards/${id}`),
   },
 
   reports: {
-    export: (data: { session_id?: string; title?: string; format: "pdf" | "md" }) =>
+    list: () => request<ReportArtifactItem[]>("/reports"),
+    export: (data: { session_id?: string; title?: string; format: "pdf" | "md"; dashboard?: DashboardResponse }) =>
       request<ReportExportResponse>("/reports/export", {
         method: "POST",
         body: JSON.stringify({
-          session_id: data.session_id || "demo_session",
+          session_id: data.session_id,
           title: data.title || "Lumen Executive Analytical Report",
           format: data.format,
+          dashboard: data.dashboard,
         }),
       }),
     downloadUrl: (filename: string) => `${API_BASE}/reports/download/${filename}`,
+    download: async (downloadUrl: string) => {
+      const token = getStoredToken();
+      const response = await fetch(downloadUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) {
+        let message = `Report download failed (${response.status})`;
+        try {
+          const body = await response.json() as { detail?: unknown };
+          if (typeof body.detail === "string") message = body.detail;
+        } catch {
+          // Preserve the HTTP status message for non-JSON errors.
+        }
+        throw new ApiError(message, response.status);
+      }
+      return response;
+    },
   },
 
   admin: {

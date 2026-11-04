@@ -4,11 +4,13 @@ import io
 import os
 import re
 from typing import Any
+
 import duckdb
 import pandas as pd
+
 from app.config import get_settings
 from app.core.errors import ValidationError
-from app.data.validation import CSVValidationResult, CSVValidator
+from app.data.validation import CSVValidator
 
 
 class DataIngestionPipeline:

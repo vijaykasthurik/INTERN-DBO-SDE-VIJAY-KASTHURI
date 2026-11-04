@@ -20,6 +20,8 @@ typecheck:
 
 check: lint typecheck test
 	cd frontend && npm run build
+	docker compose build
+	$(PYTHON) scripts/smoke_test.py
 	@echo "=== All Quality Gates Passed (make check Green) ==="
 
 smoke:

@@ -1,8 +1,10 @@
 """Semantic layer catalog: compact, prompt-friendly schema summary and business metrics."""
 
 from typing import Any
+
 from sqlalchemy.orm import Session
-from app.db.models import Dataset, DatasetColumn, MetricDefinition
+
+from app.db.models import Dataset, MetricDefinition
 
 
 class SemanticCatalogBuilder:

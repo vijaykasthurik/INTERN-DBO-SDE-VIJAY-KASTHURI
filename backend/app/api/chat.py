@@ -4,7 +4,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
@@ -12,9 +12,12 @@ from sse_starlette.sse import EventSourceResponse
 from app.agent.engine import AgentEngine
 from app.agent.memory import AgentMemory
 from app.core.errors import NotFoundError
-from app.db.models import ChatMessage, ChatSession, User, UserApiKey
+from app.data.ingestion import DataIngestionPipeline
+from app.db.models import ChatMessage, ChatSession, Dataset, User, UserApiKey
 from app.db.session import get_db
 from app.deps import get_current_user
+from app.safety.sql_validator import SQLSecurityError
+from app.tools.sql_tool import SQLExecutionError, SQLTool
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -50,6 +53,12 @@ class SendMessageRequest(BaseModel):
     content: str
 
 
+class ExecuteSQLRequest(BaseModel):
+    """Read-only SQL rerun request for code shown in the Evidence drawer."""
+
+    sql: str
+
+
 class EvidenceLedgerResponse(BaseModel):
     """Evidence ledger inspection payload."""
 
@@ -57,6 +66,29 @@ class EvidenceLedgerResponse(BaseModel):
     steps: list[dict[str, Any]]
     verified: bool
     confidence: str
+
+
+@router.post("/execute")
+async def execute_sql(
+    req: ExecuteSQLRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Re-run exact SQL through the same SELECT-only table allow-list and read-only DuckDB tool."""
+    datasets = db.query(Dataset).filter(Dataset.user_id == current_user.id).all()
+    if not datasets:
+        raise HTTPException(status_code=409, detail="Upload a dataset before running SQL.")
+    pipeline = DataIngestionPipeline()
+    tool = SQLTool(
+        db_path=pipeline.get_user_db_path(current_user.id),
+        allowed_tables=[dataset.duckdb_table_name for dataset in datasets],
+    )
+    try:
+        return tool.execute(req.sql)
+    except SQLSecurityError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SQLExecutionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/sessions", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
@@ -187,6 +219,7 @@ async def send_message_stream(
     async def _sse_generator() -> AsyncGenerator[dict[str, str], None]:
         captured_narrative: dict[str, Any] = {}
         captured_ledger_entries: list[dict[str, Any]] = []
+        captured_verification: dict[str, Any] = {}
 
         async for event in _AGENT_ENGINE.run(
             question=req.content,
@@ -201,6 +234,8 @@ async def send_message_stream(
                 captured_narrative = event.payload
             if event.event_type == "step_result":
                 captured_ledger_entries.append(event.payload)
+            if event.event_type == "verify":
+                captured_verification = event.payload
 
             # Yield SSE frame
             yield {
@@ -212,7 +247,7 @@ async def send_message_stream(
         try:
             content_text = captured_narrative.get("direct_answer", "Analysis completed.")
             confidence = captured_narrative.get("confidence", "High")
-            ledger_dict = {"entries": captured_ledger_entries}
+            ledger_dict = {"entries": captured_ledger_entries, "verification": captured_verification}
 
             asst_msg = ChatMessage(
                 id=asst_msg_id,
@@ -252,6 +287,6 @@ async def get_message_evidence(
     return EvidenceLedgerResponse(
         message_id=message_id,
         steps=steps,
-        verified=True,
+        verified=msg.confidence in {"High", "Medium"} and bool(ledger_data.get("verification")),
         confidence=msg.confidence or "High",
     )

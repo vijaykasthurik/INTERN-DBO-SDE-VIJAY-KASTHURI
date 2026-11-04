@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -33,11 +33,7 @@ interface PieSlice {
   share?: string;
 }
 
-const PRESET_DASHBOARDS = [
-  { id: "dash_exec", title: "Executive Sales & Operations", active: true },
-  { id: "dash_cohort", title: "Customer Lifetime & Cohorts", active: false },
-  { id: "dash_anomaly", title: "Inventory & Risk Surveillance", active: false },
-];
+interface DashboardScope { id: string; title: string }
 
 export const DashboardsPage: React.FC = () => {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -46,92 +42,33 @@ export const DashboardsPage: React.FC = () => {
   const [selectedDashboard, setSelectedDashboard] = useState<string>("dash_exec");
   const [fullscreenWidget, setFullscreenWidget] = useState<DashboardWidget | null>(null);
   const [exportSuccess, setExportSuccess] = useState<boolean>(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [scopes, setScopes] = useState<DashboardScope[]>([{ id: "combined", title: "All uploaded files" }]);
 
-  const fetchDashboard = async (title?: string) => {
+  const fetchDashboard = useCallback(async (title?: string, scope = "combined") => {
     setLoading(true);
     try {
-      const res = await api.dashboards.generate(title || "Executive Sales & Operations Overview");
+      const res = await api.dashboards.generate(title || "Executive Sales & Operations Overview", scope);
       setDashboard(res);
       setWidgets(res.widgets || []);
-    } catch {
-      // Fallback deterministic default
-      const fallbackWidgets: DashboardWidget[] = [
-        {
-          id: "w_kpi_rev",
-          title: "Total Net Revenue",
-          type: "kpi_card",
-          data: {
-            primary_value: "$25,585,262.08",
-            numeric_val: 25585262.08,
-            comparison: "+14.2% vs previous period",
-            status: "positive",
-          },
-        },
-        {
-          id: "w_kpi_vol",
-          title: "Total Order Volume",
-          type: "kpi_card",
-          data: {
-            primary_value: "4,959 orders",
-            numeric_val: 4959,
-            comparison: "Across 1,000 customers",
-            status: "neutral",
-          },
-        },
-        {
-          id: "w_chart_trend",
-          title: "Monthly Revenue Trend (24-Month Horizon)",
-          type: "chart_line",
-          data: {
-            chart_type: "line",
-            x_axis: ["2023-01", "2023-06", "2023-12", "2024-03", "2024-06", "2024-12"],
-            series: [850000, 1020000, 1420000, 940000, 1280000, 1650000],
-            annotation: "March 2024 regional supply chain contraction visible",
-          },
-        },
-        {
-          id: "w_chart_region",
-          title: "Revenue Distribution by Region",
-          type: "chart_pie",
-          data: {
-            chart_type: "pie",
-            slices: [
-              {"name": "North America", "value": 25585262.08, "share": "52.4%"},
-              {"name": "EMEA", "value": 11420500.00, "share": "23.4%"},
-              {"name": "APAC", "value": 8150200.00, "share": "16.7%"},
-              {"name": "LATAM", "value": 3680100.00, "share": "7.5%"},
-            ],
-          },
-        },
-        {
-          id: "w_panel_anomalies",
-          title: "Statistical Outlier Alerts",
-          type: "alert_panel",
-          data: {
-            alerts_count: 5,
-            items: [
-              {"id": "ORD-OUT-05", "severity": "critical", "detail": "Unit Price $14,000.00 (z-score: 4.8)"},
-              {"id": "ORD-OUT-01", "severity": "critical", "detail": "Unit Price $12,500.00 (z-score: 4.2)"},
-              {"id": "ORD-OUT-03", "severity": "high", "detail": "Unit Price $11,200.00 (z-score: 3.7)"},
-            ],
-          },
-        },
-      ];
-      setDashboard({
-        id: "dash_fallback",
-        title: "Executive Sales & Operations Overview",
-        widget_count: 5,
-        widgets: fallbackWidgets,
-      });
-      setWidgets(fallbackWidgets);
+    } catch (err: unknown) {
+      setDashboard(null);
+      setWidgets([]);
+      setExportError(err instanceof Error ? err.message : "Dashboard generation failed.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchDashboard();
-  }, []);
+    api.datasets.list().then((datasets) => {
+      const available = [{ id: "combined", title: "All uploaded files" }, ...datasets.map((dataset) => ({ id: String(dataset.id), title: dataset.name }))];
+      setScopes(available);
+      return fetchDashboard(undefined, "combined");
+    }).catch((err: unknown) => {
+      setExportError(err instanceof Error ? err.message : "Unable to load dashboard scopes.");
+    });
+  }, [fetchDashboard]);
 
   const moveWidget = (index: number, direction: "up" | "down") => {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
@@ -144,18 +81,25 @@ export const DashboardsPage: React.FC = () => {
   };
 
   const handleExport = async () => {
+    setExportError(null);
     try {
-      await api.reports.export({
-        session_id: "dashboard_export",
+      if (!dashboard) throw new Error("Generate a dashboard before exporting it.");
+      const artifact = await api.reports.export({
         title: dashboard?.title || "Executive Dashboard Report",
         format: "pdf",
+        dashboard,
       });
+      const response = await api.reports.download(artifact.download_url);
+      const blobUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = `${artifact.report_id}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(blobUrl);
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 3000);
-    } catch {
-      // export triggered
-      setExportSuccess(true);
-      setTimeout(() => setExportSuccess(false), 3000);
+    } catch (err: unknown) {
+      setExportError(err instanceof Error ? err.message : "Dashboard report export failed.");
     }
   };
 
@@ -221,7 +165,7 @@ export const DashboardsPage: React.FC = () => {
             Executive Dashboards
           </h1>
           <p className="text-sm text-ink-muted mt-1">
-            Auto-compiled 5-widget business overviews with KPIs, trends, and market share.
+            Live summaries computed from your selected files in the analytical database.
           </p>
         </div>
 
@@ -247,7 +191,7 @@ export const DashboardsPage: React.FC = () => {
 
           <Button
             size="md"
-            onClick={() => fetchDashboard("Executive Sales & Operations Overview")}
+            onClick={() => fetchDashboard("Executive Sales & Operations Overview", selectedDashboard)}
             disabled={loading}
           >
             {loading ? (
@@ -268,12 +212,12 @@ export const DashboardsPage: React.FC = () => {
       {/* Preset Dashboard Tabs */}
       <div className="flex items-center gap-2 mb-6 border-b border-hairline pb-3 overflow-x-auto">
         <Layers className="w-4 h-4 text-ink-muted mr-1 flex-shrink-0" />
-        {PRESET_DASHBOARDS.map((p) => (
+        {scopes.map((p) => (
           <button
             key={p.id}
             onClick={() => {
               setSelectedDashboard(p.id);
-              fetchDashboard(p.title);
+              void fetchDashboard(p.title, p.id);
             }}
             className={`px-3 py-1.5 text-xs rounded-full font-medium transition-colors whitespace-nowrap ${
               selectedDashboard === p.id
@@ -285,6 +229,10 @@ export const DashboardsPage: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {exportError && <div role="alert" className="mb-5 p-3 rounded-16 bg-rose-50 border border-rose-100 text-rose-700 text-sm">{exportError}</div>}
+      {dashboard?.explanation && <p className="mb-5 text-xs text-ink-muted">{dashboard.explanation}</p>}
+      {!loading && !dashboard && <Card className="p-8 text-center text-sm text-ink-muted">Upload a dataset to generate a live dashboard.</Card>}
 
       {/* Widgets Grid with Staggered Entrance */}
       <motion.div
