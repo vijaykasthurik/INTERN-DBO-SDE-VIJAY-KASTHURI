@@ -3,8 +3,8 @@ import ReactMarkdown from "react-markdown";
 import {
   Send,
   Square,
-  Sparkles,
-  Bot,
+  Compass,
+  TrendingUp,
   User as UserIcon,
   HelpCircle,
   AlertTriangle,
@@ -19,6 +19,9 @@ import { ReasoningTimeline, type TimelineStep, type VerificationInfo } from "../
 import { EvidenceDrawer } from "../features/workspace/EvidenceDrawer";
 import { ChartRenderer } from "../features/workspace/ChartRenderer";
 import { ChatStreamService } from "../features/workspace/ChatStreamService";
+import { AnswerProvenanceCard } from "../components/AnswerProvenanceCard";
+import { GuidedOnboardingCard } from "../components/GuidedOnboardingCard";
+import { HelpModal } from "../components/HelpModal";
 import { api, type ChatSession, type EvidenceEntry } from "../lib/api";
 import { useDatasetStore } from "../stores/datasetStore";
 import { useAIConnectionStore } from "../stores/aiConnectionStore";
@@ -67,6 +70,7 @@ export const WorkspacePage: React.FC = () => {
   const [drawerSql, setDrawerSql] = useState<string | undefined>(undefined);
   const [drawerPandas, setDrawerPandas] = useState<string | undefined>(undefined);
   const [activeAuditedNumber, setActiveAuditedNumber] = useState<string | undefined>(undefined);
+  const [helpOpen, setHelpOpen] = useState<boolean>(false);
 
   const streamServiceRef = useRef<ChatStreamService>(new ChatStreamService());
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -339,15 +343,15 @@ export const WorkspacePage: React.FC = () => {
           )}
 
           {providerSwitchAlert && (
-            <div className="bg-indigo-50/90 border-b border-indigo-200 px-6 py-2 flex items-center justify-between text-xs text-indigo-900 animate-fadeIn">
+            <div className="bg-emerald-50/90 border-b border-emerald-200 px-6 py-2 flex items-center justify-between text-xs text-emerald-900 animate-fadeIn">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                <Compass className="w-4 h-4 text-emerald-700 shrink-0" />
                 <span>{providerSwitchAlert}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setProviderSwitchAlert(null)}
-                className="text-indigo-600 hover:text-indigo-950 text-xs font-medium ml-3"
+                className="text-emerald-700 hover:text-emerald-950 text-xs font-medium ml-3"
               >
                 Dismiss
               </button>
@@ -356,10 +360,22 @@ export const WorkspacePage: React.FC = () => {
 
           {/* CHAT MESSAGES SCROLL AREA */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            {/* Guided Onboarding Checklist Card */}
+            <div className="max-w-3xl mx-auto">
+              <GuidedOnboardingCard
+                hasDatasets={datasets.length > 0}
+                hasAskedQuestion={messages.length > 0}
+                hasViewedEvidence={drawerOpen}
+                hasReports={false}
+                hasDashboards={datasets.length > 0}
+                onOpenHelp={() => setHelpOpen(true)}
+              />
+            </div>
+
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto py-12 select-none">
-                <div className="w-12 h-12 rounded-24 bg-accent-gradient flex items-center justify-center text-white mb-4 shadow-soft-xs">
-                  <Sparkles className="w-6 h-6" />
+              <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto py-8 select-none">
+                <div className="w-12 h-12 rounded-24 bg-ink flex items-center justify-center text-white mb-4 shadow-soft-xs font-mono font-bold text-lg">
+                  L
                 </div>
                 <h3 className="text-xl font-serif font-medium text-ink tracking-tight">
                   Start an Analysis
@@ -377,7 +393,7 @@ export const WorkspacePage: React.FC = () => {
                     <button
                       key={chip}
                       onClick={() => handleSendMessage(chip)}
-                      className="px-3 py-1.5 rounded-pill bg-surface hover:bg-white border border-hairline text-xs font-medium text-ink transition-all shadow-soft-xs hover:border-accent-indigo"
+                      className="px-3 py-1.5 rounded-pill bg-surface hover:bg-white border border-hairline text-xs font-medium text-ink transition-all shadow-soft-xs hover:border-hairline-dark"
                     >
                       {chip}
                     </button>
@@ -390,8 +406,8 @@ export const WorkspacePage: React.FC = () => {
                   {/* MESSAGE ROW */}
                   <div className={`flex gap-3.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     {msg.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-pill bg-accent-gradient flex items-center justify-center text-white flex-shrink-0 shadow-soft-xs mt-0.5">
-                        <Bot className="w-4 h-4" />
+                      <div className="w-7 h-7 rounded-pill bg-ink flex items-center justify-center text-white flex-shrink-0 shadow-soft-xs mt-0.5 font-mono text-[10px] font-bold">
+                        L
                       </div>
                     )}
 
@@ -406,16 +422,16 @@ export const WorkspacePage: React.FC = () => {
                       <div className="prose prose-sm max-w-none text-xs leading-relaxed text-current">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                         {msg.isStreaming && (
-                          <span className="inline-block w-1.5 h-3.5 bg-accent-indigo ml-1 animate-pulse align-middle" />
+                          <span className="inline-block w-1.5 h-3.5 bg-ink ml-1 animate-pulse align-middle" />
                         )}
                       </div>
 
                       {/* BUSINESS INSIGHT BANNER */}
                       {msg.business_insight && (
                         <div className="mt-4 p-3 rounded-16 bg-white border border-hairline flex items-start gap-2.5">
-                          <Sparkles className="w-4 h-4 text-accent-indigo flex-shrink-0 mt-0.5" />
+                          <TrendingUp className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-[10px] font-bold text-accent-indigo uppercase tracking-wider">
+                            <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
                               Executive Insight
                             </p>
                             <p className="text-xs text-ink mt-0.5 leading-normal">
@@ -479,42 +495,57 @@ export const WorkspacePage: React.FC = () => {
 
                       {/* CODE & EVIDENCE AUDIT BUTTONS */}
                       {msg.role === "assistant" && !msg.isStreaming && (
-                        <div className="mt-4 pt-3 border-t border-hairline flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEvidence(msg)}
-                              className="h-7 px-2.5 text-[11px] text-accent-indigo hover:bg-indigo-50"
-                            >
-                              <Table className="w-3 h-3 mr-1" />
-                              View Evidence Ledger
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEvidence(msg)}
-                              className="h-7 px-2 text-[11px] text-ink-muted hover:text-ink"
-                            >
-                              <Code2 className="w-3 h-3 mr-1" />
-                              SQL / Code
-                            </Button>
-                          </div>
+                        <div>
+                          <AnswerProvenanceCard
+                            confidence={msg.confidence || "High"}
+                            evidenceSteps={msg.evidence?.map((e) => ({
+                              step_id: e.step_id,
+                              tool: e.tool,
+                              code: e.code,
+                              status: e.status,
+                              runtime_ms: e.runtime_ms,
+                            })) || []}
+                            onOpenEvidenceDrawer={() => openEvidence(msg)}
+                            messageId={msg.id}
+                          />
 
-                          {msg.confidence && (
-                            <Badge
-                              variant={
-                                msg.confidence === "High"
-                                  ? "success"
-                                  : msg.confidence === "Medium"
-                                  ? "warning"
-                                  : "error"
-                              }
-                              size="sm"
-                            >
-                              {msg.confidence} Confidence
-                            </Badge>
-                          )}
+                          <div className="mt-2.5 pt-2 border-t border-hairline/60 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEvidence(msg)}
+                                className="h-6 px-2 text-[11px] text-emerald-800 hover:bg-emerald-50 rounded-pill"
+                              >
+                                <Table className="w-3 h-3 mr-1" />
+                                View Evidence Ledger
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEvidence(msg)}
+                                className="h-6 px-2 text-[11px] text-ink-muted hover:text-ink rounded-pill"
+                              >
+                                <Code2 className="w-3 h-3 mr-1" />
+                                SQL / Code
+                              </Button>
+                            </div>
+
+                            {msg.confidence && (
+                              <Badge
+                                variant={
+                                  msg.confidence === "High"
+                                    ? "success"
+                                    : msg.confidence === "Medium"
+                                    ? "warning"
+                                    : "error"
+                                }
+                                size="sm"
+                              >
+                                {msg.confidence} Confidence
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -612,6 +643,8 @@ export const WorkspacePage: React.FC = () => {
         pandasCode={drawerPandas}
         activeNumber={activeAuditedNumber}
       />
+      {/* HELP & TRANSPARENCY MODAL */}
+      <HelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 };

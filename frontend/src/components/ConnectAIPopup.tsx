@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  Sparkles,
+  KeyRound,
   Lock,
   Eye,
   EyeOff,
@@ -172,12 +172,12 @@ export const ConnectAIPopup: React.FC = () => {
           {/* HEADER */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-hairline bg-surface/40">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-pill bg-accent-gradient flex items-center justify-center text-white shadow-soft-xs">
-                <Sparkles className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-pill bg-ink flex items-center justify-center text-white shadow-soft-xs">
+                <KeyRound className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="font-serif text-lg font-medium text-ink tracking-tight">
-                  Connect your AI
+                  Connect a Model
                 </h3>
                 <p className="text-xs text-ink-muted">
                   Bring your own API key for unlimited queries, or rely on shared fallback models.
@@ -340,7 +340,7 @@ export const ConnectAIPopup: React.FC = () => {
                     "flex items-center gap-2 px-4 py-2 text-xs font-medium text-white rounded-pill transition-all",
                     validating || !apiKey.trim()
                       ? "bg-slate-300 cursor-not-allowed"
-                      : "bg-accent-gradient shadow-soft-xs hover:shadow-nav-glow active:scale-95"
+                      : "bg-ink text-white shadow-soft-xs hover:bg-ink/90 active:scale-95"
                   )}
                 >
                   {validating ? (
@@ -398,7 +398,7 @@ export const ConnectAIPopup: React.FC = () => {
 
                   <div className="p-2.5 bg-white border border-emerald-100 rounded-14">
                     <div className="flex items-center gap-1.5 text-ink-muted text-[10px] uppercase font-semibold">
-                      <Sparkles className="w-3 h-3 text-accent-violet" />
+                      <Cpu className="w-3 h-3 text-emerald-700" />
                       <span>Strong Tier (Planner / SQL / Voice)</span>
                     </div>
                     <p className="font-mono text-xs font-semibold text-ink mt-0.5 truncate">
@@ -488,7 +488,7 @@ export const ConnectAIPopup: React.FC = () => {
                 type="button"
                 disabled={connecting}
                 onClick={handleConnect}
-                className="flex items-center gap-2 px-5 py-2 text-xs font-medium text-white bg-accent-gradient rounded-pill shadow-soft-xs hover:shadow-nav-glow active:scale-95 transition-all"
+                className="flex items-center gap-2 px-5 py-2 text-xs font-medium text-white bg-ink rounded-pill shadow-soft-xs hover:bg-ink/90 active:scale-95 transition-all"
               >
                 {connecting ? (
                   <>

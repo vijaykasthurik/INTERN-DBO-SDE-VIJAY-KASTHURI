@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Database, Table, Sparkles, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Database, Table, HelpCircle, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
 import { useDatasetStore } from "../../stores/datasetStore";
 
@@ -121,7 +121,7 @@ export const DatasetRail: React.FC<DatasetRailProps> = ({
                 onClick={() => onSelectPrompt(prompt)}
                 className="w-full text-left p-2 rounded-16 bg-white border border-hairline hover:border-accent-indigo hover:shadow-soft-xs text-xs text-ink-muted hover:text-ink transition-all flex items-start gap-2 group"
               >
-                <Sparkles className="w-3.5 h-3.5 text-accent-indigo flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <HelpCircle className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                 <span className="line-clamp-2 leading-relaxed">{prompt}</span>
               </button>
             ))}

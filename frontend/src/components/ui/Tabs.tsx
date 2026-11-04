@@ -69,7 +69,7 @@ export const Tabs: React.FC<TabsProps> = ({
               <motion.div
                 layoutId={layoutId}
                 transition={{ type: "spring", bounce: 0.15, duration: 0.35 }}
-                className="absolute -bottom-px left-0 right-0 h-0.5 bg-accent-gradient"
+                className="absolute -bottom-px left-0 right-0 h-0.5 bg-ink"
               />
             )}
             <span className="relative z-10 flex items-center gap-1.5">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Sparkles,
+  KeyRound,
   RefreshCw,
   Trash2,
   CheckCircle2,
@@ -136,7 +136,7 @@ export const ProfilePage: React.FC = () => {
         >
           <div className="p-6 border-b border-hairline bg-surface/30 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-pill bg-accent-gradient flex items-center justify-center text-white shadow-soft-xs">
+              <div className="w-8 h-8 rounded-pill bg-ink flex items-center justify-center text-white shadow-soft-xs">
                 <Key className="w-4 h-4" />
               </div>
               <div>
@@ -317,21 +317,21 @@ export const ProfilePage: React.FC = () => {
               /* NO KEY CONNECTED EMPTY STATE */
               <div className="text-center py-8 px-4 space-y-4">
                 <div className="w-12 h-12 rounded-pill bg-surface border border-hairline flex items-center justify-center text-ink-muted mx-auto">
-                  <Sparkles className="w-6 h-6 text-accent-indigo" />
+                  <KeyRound className="w-6 h-6 text-emerald-700" />
                 </div>
                 <div className="max-w-md mx-auto space-y-1">
                   <h3 className="text-sm font-semibold text-ink">
-                    No Personal AI Key Connected
+                    No Personal Model Key Connected
                   </h3>
                   <p className="text-xs text-ink-muted leading-relaxed">
-                    You are currently using Lumen&apos;s free shared demo pool. Connect your personal API key (OpenAI, Gemini, Groq, Anthropic, DeepSeek, etc.) for unlimited inquiries and zero hourly throttles.
+                    You are currently using Lumen&apos;s free shared model pool. Connect your personal API key (Groq, Gemini, OpenAI, Anthropic, DeepSeek, etc.) for direct private queries with zero shared rate limits.
                   </p>
                 </div>
                 <div>
                   <button
                     type="button"
                     onClick={() => openConnectModal()}
-                    className="inline-flex items-center gap-2 px-5 py-2 text-xs font-medium text-white bg-accent-gradient rounded-pill shadow-soft-xs hover:shadow-nav-glow active:scale-95 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2 text-xs font-medium text-white bg-ink rounded-pill shadow-soft-xs hover:bg-ink/90 active:scale-95 transition-all"
                   >
                     <Key className="w-3.5 h-3.5" />
                     <span>Connect your AI Key</span>

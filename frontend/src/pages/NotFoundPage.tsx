@@ -1,13 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { FileQuestion, ArrowLeft } from "lucide-react";
 import { Button } from "../components/ui/Button";
 
 export const NotFoundPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center select-none">
-      <div className="w-12 h-12 rounded-24 bg-accent-gradient flex items-center justify-center text-white mb-4 shadow-soft-sm">
-        <Sparkles className="w-6 h-6" />
+      <div className="w-12 h-12 rounded-24 bg-surface border border-hairline flex items-center justify-center text-ink mb-4 shadow-soft-xs">
+        <FileQuestion className="w-6 h-6 text-ink-muted" />
       </div>
       <span className="text-4xl font-serif text-ink tracking-tight font-medium">404</span>
       <h1 className="text-xl font-semibold text-ink mt-2">Page Not Found</h1>

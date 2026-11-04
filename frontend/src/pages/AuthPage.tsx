@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Lock, Mail, User as UserIcon } from "lucide-react";
+import { ArrowRight, Lock, Mail, User as UserIcon } from "lucide-react";
+import { Wordmark } from "../components/Wordmark";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/Card";
@@ -59,14 +60,14 @@ export const AuthPage: React.FC = () => {
       >
         {/* Brand header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-24 bg-accent-gradient text-white shadow-soft-sm mb-4">
-            <Sparkles className="w-6 h-6" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <Wordmark />
           </div>
           <h1 className="text-3xl font-serif text-ink tracking-tight font-medium">
             Welcome to Lumen
           </h1>
           <p className="text-sm text-ink-muted mt-2">
-            The autonomous AI Data Analyst for high-velocity teams.
+            Autonomous data analysis with mathematical grounding and verifiable evidence.
           </p>
         </div>
 

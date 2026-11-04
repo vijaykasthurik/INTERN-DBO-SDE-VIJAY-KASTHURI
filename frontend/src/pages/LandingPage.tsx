@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   Zap,
@@ -102,8 +101,8 @@ export const LandingPage: React.FC = () => {
           transition={{ duration: 0.6 }}
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-pill bg-surface border border-hairline shadow-soft-xs text-xs font-medium mb-6 select-none"
         >
-          <Sparkles className="w-3.5 h-3.5 text-accent-indigo" />
-          <span>Next-Generation Autonomous Analytics</span>
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+          <span>Engineered Trust & Zero-Hallucination Analytics</span>
           <Badge variant="accent" size="sm">v1.0</Badge>
         </motion.div>
 
@@ -114,7 +113,7 @@ export const LandingPage: React.FC = () => {
           className="text-4xl sm:text-6xl md:text-7xl font-serif tracking-tight leading-[1.08] text-ink max-w-4xl mx-auto"
         >
           Instant clarity from <br />
-          <span className="italic font-normal bg-accent-gradient bg-clip-text text-transparent">
+          <span className="italic font-normal text-emerald-950">
             raw tabular data.
           </span>
         </motion.h1>

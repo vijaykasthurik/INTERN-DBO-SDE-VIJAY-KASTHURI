@@ -27,7 +27,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variantStyles = {
       primary:
-        "bg-accent-gradient text-white shadow-soft-xs hover:shadow-nav-glow active:scale-[0.98] border border-transparent",
+        "bg-ink text-white shadow-soft-xs hover:bg-ink/90 active:scale-[0.98] border border-transparent",
       secondary:
         "bg-surface text-ink hover:bg-slate-100 border border-hairline shadow-soft-xs active:scale-[0.98]",
       outline:

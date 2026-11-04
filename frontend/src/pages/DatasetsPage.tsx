@@ -20,6 +20,7 @@ import { Dialog } from "../components/ui/Dialog";
 import { api } from "../lib/api";
 import type { Dataset } from "../lib/api";
 import { useDatasetStore } from "../stores/datasetStore";
+import { UploadSummaryCard } from "../components/UploadSummaryCard";
 
 export const DatasetsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -239,6 +240,20 @@ export const DatasetsPage: React.FC = () => {
         </motion.div>
       )}
       {actionError && <div role="alert" className="mt-4 p-3 rounded-16 bg-rose-50 border border-rose-100 text-rose-700 text-sm">{actionError}</div>}
+
+      {/* WHAT LUMEN JUST PREPARED SUMMARY CARD */}
+      {datasets.length > 0 && (
+        <UploadSummaryCard
+          datasets={datasets.map((d) => ({
+            id: d.id,
+            name: d.name,
+            table_name: d.table_name,
+            row_count: d.row_count,
+            column_count: d.column_count,
+            quality_score: d.quality_score,
+          }))}
+        />
+      )}
 
       {/* MAIN DATASET WORKSPACE: LIST & INSPECTOR */}
       {datasets.length === 0 && !isLoading ? (

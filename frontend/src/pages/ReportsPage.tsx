@@ -3,7 +3,7 @@ import {
   FileText,
   Download,
   Clock,
-  Sparkles,
+  ShieldCheck,
   Plus,
   Eye,
   CheckCircle2,
@@ -304,7 +304,7 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           <div className="p-3 bg-surface rounded-12 border border-hairline text-xs text-ink-muted flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-accent-indigo flex-shrink-0 mt-0.5" />
+            <ShieldCheck className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
             <span>
               All reports are compiled using verified query results from the Evidence Ledger.
               Ungrounded numbers are strictly excluded.

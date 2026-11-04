@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   FileText,
   Settings,
-  Sparkles,
+  Compass,
   Command,
 } from "lucide-react";
 
@@ -139,7 +139,7 @@ export const CommandPalette: React.FC = () => {
                       onClick={() => handleSelect(`/workspace`)}
                       className="w-full px-3 py-2 text-left text-xs text-ink hover:bg-surface rounded-16 flex items-center gap-2.5 transition-colors group"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-accent-indigo" />
+                      <Compass className="w-3.5 h-3.5 text-emerald-700" />
                       <span className="truncate">{prompt}</span>
                     </button>
                   ))}

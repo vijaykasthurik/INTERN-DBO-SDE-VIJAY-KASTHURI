@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   Plus,
-  Sparkles,
+  Activity,
   Maximize2,
   TrendingUp,
   AlertTriangle,
@@ -354,7 +354,7 @@ export const DashboardsPage: React.FC = () => {
                         />
                         {Boolean(widget.data.annotation) && (
                           <p className="text-xs text-ink-muted mt-2 italic flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5 text-accent-indigo" />
+                            <Activity className="w-3.5 h-3.5 text-emerald-700" />
                             {String(widget.data.annotation)}
                           </p>
                         )}
