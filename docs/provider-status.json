@@ -1,0 +1,32 @@
+{
+  "primary_provider": "groq",
+  "fallback_chain": [
+    "groq",
+    "zai",
+    "huggingface"
+  ],
+  "providers": {
+    "mock": {
+      "available": false,
+      "type": "rule-based",
+      "latency_ms": 1.2
+    },
+    "gemini": {
+      "available": false,
+      "type": "remote"
+    },
+    "groq": {
+      "available": true,
+      "type": "remote",
+      "strong_model": "llama-3.3-70b-versatile"
+    },
+    "openrouter": {
+      "available": false,
+      "type": "remote"
+    },
+    "openai_compat": {
+      "available": false,
+      "type": "remote"
+    }
+  }
+}

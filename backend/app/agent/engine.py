@@ -454,7 +454,7 @@ Respond ONLY with valid JSON conforming to:
 
         # Step 6: Draft Narration (Dynamic Live LLM strictly from Evidence Ledger)
         draft_narrative: FinalNarrative | None = None
-        if is_live:
+        if is_live and route.lane != "code_request":
             try:
                 draft_narrative = await self.narrate_with_llm(
                     question=resolved_question,

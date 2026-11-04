@@ -10,7 +10,7 @@
 | **Total Benchmarks** | >= 30 | **32** | PASS |
 | **Verifier Pass Rate** | >= 95.0% | **40.6%** | FAIL |
 | **Average Latency** | < 1500ms | **1718.34 ms** | FAIL |
-| **Average Cost / Question** | $0.00 | **$0.0000** | PASS |
+| **Average Cost / Question** | Measured usage | Not recorded | NOT MEASURED |
 
 ## Detailed Question Scorecard
 

@@ -279,7 +279,7 @@ def write_results_markdown(scorecard: dict, path: Path) -> None:
         f"| **Total Benchmarks** | >= 30 | **{scorecard['total_questions']}** | PASS |",
         f"| **Verifier Pass Rate** | >= 95.0% | **{scorecard['verifier_pass_rate_pct']}%** | {'PASS' if scorecard['verifier_pass_rate_pct'] >= 95 else 'FAIL'} |",
         f"| **Average Latency** | < 1500ms | **{scorecard['average_latency_ms']} ms** | PASS |",
-        f"| **Average Cost / Question** | $0.00 | **${scorecard['average_cost_usd']:.4f}** | PASS |",
+        "| **Average Cost / Question** | Measured usage | Not recorded | NOT MEASURED |",
         "",
         "## Detailed Question Scorecard",
         "",

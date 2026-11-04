@@ -121,6 +121,11 @@ class DashboardTool:
             finally:
                 con.close()
 
+        if relationships_used:
+            for widget in widgets:
+                if widget["id"] == "w_summary":
+                    widget["data"]["annotation"] = "Independent file summaries; cross-file widgets below use validated joins."
+
         return {
             "id": f"dash_{uuid.uuid4().hex[:10]}", "title": title, "widget_count": len(widgets),
             "widgets": widgets, "scope": scope_table or "combined", "scope_label": scope_label,
