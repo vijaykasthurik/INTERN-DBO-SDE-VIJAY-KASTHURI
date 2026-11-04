@@ -79,6 +79,7 @@ desktop.ini
 
 # Media over 10MB
 *.mp4
+!docs/media/demo/*.mp4
 *.mov
 *.avi
 *.mkv

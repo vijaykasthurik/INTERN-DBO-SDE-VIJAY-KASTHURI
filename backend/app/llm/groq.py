@@ -36,8 +36,10 @@ class GroqProvider(LLMProvider):
     ) -> None:
         settings = get_settings()
         self.api_key = api_key or settings.groq_api_key
-        self.fast_model = model_fast or settings.groq_model_fast or "llama-3.1-8b-instant"
-        self.strong_model = model_strong or settings.groq_model_strong or "llama-3.3-70b-versatile"
+        # Use explicitly configured fast model if provided, else compact model
+        self.fast_model = model_fast or settings.groq_model_fast or "openai/gpt-oss-20b"
+        # Shared chain uses model from .env (GROQ_MODEL) as strong tier
+        self.strong_model = model_strong or settings.groq_model or settings.groq_model_strong or "llama-3.3-70b-versatile"
         self.client = httpx.AsyncClient(timeout=30.0)
 
     def _select_model(self, tier: Literal["fast", "strong"]) -> str:
@@ -108,6 +110,19 @@ class GroqProvider(LLMProvider):
 
         try:
             resp = await self.client.post(self.BASE_URL, json=payload, headers=headers)
+            if resp.status_code == 404:
+                err_text = resp.text
+                if "model_not_found" in err_text or "does not exist" in err_text:
+                    # Adaptive fallback for decommissioned/restricted models
+                    fallback_candidates = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", self.fast_model]
+                    for cand in fallback_candidates:
+                        if cand != model:
+                            retry_payload = {**payload, "model": cand}
+                            retry_resp = await self.client.post(self.BASE_URL, json=retry_payload, headers=headers)
+                            if retry_resp.status_code == 200:
+                                resp = retry_resp
+                                model = cand
+                                break
             resp.raise_for_status()
             data = resp.json()
         except httpx.HTTPStatusError as e:

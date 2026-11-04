@@ -71,7 +71,7 @@ class Settings(BaseSettings):
         default="https://api.groq.com/openai/v1/chat/completions",
         alias="GROQ_API_URL",
     )
-    groq_model: str = Field(default="openai/gpt-oss-20b", alias="GROQ_MODEL")
+    groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
     groq_api_key_1: str = Field(default="", alias="GROQ_API_KEY_1")
     groq_api_key_2: str = Field(default="", alias="GROQ_API_KEY_2")
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     groq_api_key_6: str = Field(default="", alias="GROQ_API_KEY_6")
     groq_api_key_7: str = Field(default="", alias="GROQ_API_KEY_7")
     groq_model_fast: str = Field(default="openai/gpt-oss-20b", alias="GROQ_MODEL_FAST")
-    groq_model_strong: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL_STRONG")
+    groq_model_strong: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL_STRONG")
 
     # Z.AI Shared
     zai_api_key: str = Field(default="", alias="ZAI_API_KEY")

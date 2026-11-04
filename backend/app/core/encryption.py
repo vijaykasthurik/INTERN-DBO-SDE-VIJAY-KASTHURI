@@ -8,6 +8,7 @@ import re
 import socket
 from urllib.parse import urlparse
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.config import get_settings
@@ -92,7 +93,12 @@ def decrypt_api_key(encrypted_str: str) -> str:
 
     master_key = _derive_master_key()
     aesgcm = AESGCM(master_key)
-    plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, None)
+    try:
+        plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, None)
+    except InvalidTag as e:
+        raise SecurityViolationError(
+            "Decryption failed: integrity authentication tag mismatch or corrupted ciphertext."
+        ) from e
     return plaintext_bytes.decode("utf-8")
 
 

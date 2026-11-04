@@ -12,9 +12,9 @@ test.describe("Lumen BYOK AI Provider & Fallback E2E Flow", () => {
     const password = "Password123!";
 
     await page.click("text=Create Account");
-    await page.fill('input[placeholder="Jane Doe"]', "E2E BYOK Reviewer");
+    await page.fill('input[placeholder="Ada Lovelace"]', "E2E BYOK Reviewer");
     await page.fill('input[type="email"]', email);
-    await page.fill('input[placeholder="Min. 8 characters"]', password);
+    await page.fill('input[type="password"]', password);
     await page.click('button[type="submit"]:has-text("Create Account")');
 
     // Wait until redirected to workspace

@@ -29,17 +29,21 @@ def redact(val: str | None) -> str:
     return f"...{val[-4:]}"
 
 
-async def probe_groq_key(key: str, index: int, model: str = "llama-3.3-70b-versatile") -> bool:
-    prov = GroqProvider(api_key=key, model_fast=model, model_strong=model)
+async def probe_groq_key(key: str, index: int, strong_model: str, fast_model: str | None = None) -> bool:
+    prov = GroqProvider(api_key=key, model_strong=strong_model, model_fast=fast_model)
     t0 = time.perf_counter()
     try:
-        res = await prov.complete([LLMMessage(role="user", content="Ping. Respond with one word: 'OK'.")])
+        res = await prov.complete(
+            [LLMMessage(role="user", content="Ping. Respond with one word: 'OK'.")],
+            tier="strong",
+        )
         dt = (time.perf_counter() - t0) * 1000.0
-        print(f"[ONLINE] Groq Key #{index:2d} (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Model: {res.model} | Reply: {res.content.strip()[:20]}")
+        print(f"[ONLINE] Groq Key #{index:2d} (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Strong Model: {res.model} | Reply: {res.content.strip()[:20]}")
         return True
     except Exception as exc:
         dt = (time.perf_counter() - t0) * 1000.0
-        print(f"[DEGRADED] Groq Key #{index:2d} (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Error: {exc}")
+        safe_msg = str(exc).encode("ascii", "backslashreplace").decode("ascii")
+        print(f"[DEGRADED] Groq Key #{index:2d} (Key: {redact(key)}) | Latency: {dt:6.1f}ms | Error: {safe_msg}")
         return False
 
 
@@ -101,12 +105,12 @@ async def main() -> None:
         if args.key_index:
             idx = args.key_index
             if 1 <= idx <= len(keys):
-                await probe_groq_key(keys[idx - 1], idx, settings.groq_model)
+                await probe_groq_key(keys[idx - 1], idx, settings.groq_model, settings.groq_model_fast)
             else:
                 print(f"[ERROR] Groq key index {idx} out of range (1..{len(keys)})")
         else:
             for idx, key in enumerate(keys, start=1):
-                await probe_groq_key(key, idx, settings.groq_model)
+                await probe_groq_key(key, idx, settings.groq_model, settings.groq_model_fast)
 
     # 3. Z.AI
     if args.provider in ("all", "zai"):

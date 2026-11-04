@@ -14,7 +14,6 @@ import { useAuthStore } from "../stores/authStore";
 import { useAIConnectionStore } from "../stores/aiConnectionStore";
 import { api } from "../lib/api";
 import { cn } from "../lib/utils";
-import { ConnectAIPopup } from "../components/ConnectAIPopup";
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
@@ -89,8 +88,6 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white pt-24 pb-16 px-4 md:px-8">
-      <ConnectAIPopup />
-
       <div className="max-w-4xl mx-auto space-y-8">
         {/* PAGE HEADER */}
         <div>
