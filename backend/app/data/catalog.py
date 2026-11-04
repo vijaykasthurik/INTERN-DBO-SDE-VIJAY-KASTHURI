@@ -15,7 +15,7 @@ class SemanticCatalogBuilder:
         "order_date": "Calendar date when the purchase order was placed (YYYY-MM-DD)",
         "customer_id": "Foreign reference key to the customer account profile",
         "product_id": "Foreign reference key identifying the purchased SKU or product",
-        "region": "Geographic sales territory (e.g. North America, EMEA, APAC, LATAM)",
+        "region": "Geographic market territory (e.g. North America, EMEA, APAC, LATAM)",
         "quantity": "Total number of product units ordered",
         "unit_price": "Base unit price of the product item prior to discounting",
         "discount": "Promotional percentage discount applied to the transaction line item",

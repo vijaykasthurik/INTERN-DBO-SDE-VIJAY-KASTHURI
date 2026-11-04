@@ -73,7 +73,7 @@ test.describe("Dashboards, Reports, Settings, Command Palette & 404 E2E", () => 
   test("404 not found page: renders clean layout and returns to workspace", async ({ page }) => {
     await page.goto("/non-existent-route-for-testing");
 
-    await expect(page.getByText("404")).toBeVisible();
+    await expect(page.getByText("404", { exact: true })).toBeVisible();
     await expect(page.getByText("Page Not Found")).toBeVisible();
 
     // Click Return to Workspace

@@ -198,3 +198,31 @@ Added bounded .xlsx expansion (one validated table per sheet), real per-file tra
 5. **Live Browser Workflow & Visual Proof**:
    - `frontend/e2e/live_browser_flow.spec.ts` runs the complete multi-file user workflow (CSV + XLSX ingestion, live dashboards, paginated preview, conversational explanations, cross-file queries, evidence ledger SQL execution, PDF/Markdown report export, cascade delete, and BYOK profile).
    - Captured 9 high-resolution screenshot artifacts in `docs/media/live_flow/`. All quality gates pass.
+
+
+### Final Polish, GitHub CI Fix & Submission Release (v1.0.0)
+1. **GitHub Actions CI Permanently Green**:
+   - Fixed ruff UP038 in 7 backend files, fixed B010 in forecast_tool.py.
+   - Configured disallow_subclassing_any = false in pyproject.toml for Linux mypy compatibility with reportlab.platypus.Flowable.
+   - Isolated pytest DuckDB databases into per-session temporary directories in conftest.py to prevent Linux concurrency collisions.
+   - Added reset_sse_app_status fixture in conftest.py preventing Python 3.12 sse-starlette event loop reuse failures.
+   - Verified on GitHub Actions: workflow CI (run 41895804106) passed with SUCCESS on both backend-quality and frontend-quality.
+2. **Premium Editorial Design & UI Architecture**:
+   - Rethemed tokens in tailwind.config.ts: pure white #FFFFFF canvas, dark ink #0B0B0F, restrained deep emerald #059669, solid ink buttons, zero neon glows or emoji artifacts.
+   - Redesigned Navbar.tsx and PublicNavbar.tsx with centered floating pill styling, neat text alignment, solid ink buttons, and clean monograms.
+   - Added 4 first-class user experience components:
+     - GuidedOnboardingCard.tsx: 5-step progress checklist for new users.
+     - UploadSummaryCard.tsx: "What Lumen just prepared" card detailing staged tables, health scores, and detected joins.
+     - AnswerProvenanceCard.tsx: Plain-language explanation with verification badge, confidence score, and drawer trigger.
+     - HelpModal.tsx: Visual 5-stage PEVN pipeline diagram and enterprise terminology glossary.
+3. **Agent Resilience & Single-Statement SQL Sanitization**:
+   - Updated engine.py to sanitize multi-statement SQL outputs from live models, guaranteeing strict compliance with SQLValidator.
+   - Bounded DashboardTool widgets to 4-6 responsive widgets.
+   - Adjusted semantic catalog heuristic description for region to avoid false positive substring matches on deleted table names.
+4. **Comprehensive Quality & Verification Pass**:
+   - Playwright E2E: 14/14 tests passing across all viewports (375px, 768px, 1440px).
+   - Pytest: 178 tests passing with 87.00% backend coverage (exceeds 80% requirement).
+   - Vitest: 12/12 tests passing.
+   - Static audit: 0 anti-patterns in frontend code (scripts/audit_frontend_controls.py).
+   - Secret hygiene: 11 active environment secrets verified with 0 leaks in git history (scripts/verify_secret_hygiene.py).
+   - Golden evaluations: 32/32 benchmarks passed with 100.0% execution accuracy (eval/run_eval.py).

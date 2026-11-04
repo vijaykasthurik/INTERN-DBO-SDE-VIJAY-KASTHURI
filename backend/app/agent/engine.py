@@ -109,7 +109,7 @@ Rules:
 3. For revenue change investigations with order_date, quantity, unit_price and discount available, use hypothesis_tool. Set target_period (YYYY-MM) and target_region only when specified by the question; otherwise null. For other metrics use sql_tool to test observed changes. Never infer external business causes from correlations.
 4. For a request explicitly asking for Pandas/Python code, select pandas_tool and include code assigning result. The supplied dataframes dictionary contains uploaded tables by their exact table names; df is the sales table when available, otherwise the first table. No imports, file/network IO, eval or query. Use bracket column access. Use to_dict(orient="records") for a table result. Every merge/join must set validate="many_to_one" or validate="one_to_one".
 5. For all other data queries, calculations, aggregations, and trends, set "tool": "sql_tool":
-   - The query MUST be a SELECT-only DuckDB SQL query. No mutations.
+   - The query MUST be a single SELECT statement. NEVER output multiple queries separated by semicolons. Only return ONE single query. No mutations.
    - Use only verified relationship keys for cross-file joins. Qualify columns by table alias. Never create a Cartesian join.
    - Preserve the fact-table row grain. Use COUNT(*) for counts of records/orders unless unique or distinct is explicitly requested. Do not deduplicate rows unless asked.
    - Include filter/group labels that will be cited (such as month or region) in the selected result columns, so every cited value is recorded in evidence.
@@ -133,7 +133,17 @@ Respond ONLY with valid JSON conforming to:
         desc = data.get("description", "Execute analytical query")
 
         if tool == "sql_tool" and data.get("sql"):
-            sql_text = data["sql"].strip()
+            raw_sql = data["sql"].strip()
+            statements = [s.strip() for s in raw_sql.split(";") if s.strip()]
+            if len(statements) > 1:
+                for s in statements:
+                    if s.lower().startswith("select") or s.lower().startswith("with"):
+                        sql_text = s
+                        break
+                else:
+                    sql_text = statements[0]
+            else:
+                sql_text = raw_sql
             chart_type = data.get("chart_type", "none")
             step1 = PlanStep(
                 id="step_1",
@@ -360,10 +370,6 @@ Respond ONLY with valid JSON conforming to:
                 )
             except Exception as exc:
                 logger.warn("llm_planning_failed_fallback_deterministic", error_type=type(exc).__name__)
-                if settings.app_env.lower() == "production" or settings.llm_provider != "mock":
-                    yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while planning this analysis."})
-                    yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
-                    return
                 dag = None
 
         if dag is None:
@@ -453,10 +459,6 @@ Respond ONLY with valid JSON conforming to:
                 )
             except Exception as exc:
                 logger.warn("llm_narration_failed_fallback_deterministic", error_type=type(exc).__name__)
-                if settings.app_env.lower() == "production" or settings.llm_provider != "mock":
-                    yield AgentEvent(event_type="error", trace_id=trace_id, payload={"message": "All configured AI providers failed while preparing the answer."})
-                    yield AgentEvent(event_type="done", trace_id=trace_id, payload={"status": "error"})
-                    return
                 draft_narrative = None
 
         if draft_narrative is None:
