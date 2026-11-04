@@ -12,7 +12,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.agent.engine import AgentEngine
 from app.agent.memory import AgentMemory
 from app.core.errors import NotFoundError
-from app.db.models import ChatMessage, ChatSession, User
+from app.db.models import ChatMessage, ChatSession, User, UserApiKey
 from app.db.session import get_db
 from app.deps import get_current_user
 
@@ -177,6 +177,13 @@ async def send_message_stream(
     asst_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
     user_id = current_user.id
 
+    user_key = (
+        db.query(UserApiKey)
+        .filter(UserApiKey.user_id == current_user.id, UserApiKey.status == "active")
+        .first()
+    )
+    allow_fallback = current_user.allow_shared_fallback
+
     async def _sse_generator() -> AsyncGenerator[dict[str, str], None]:
         captured_narrative: dict[str, Any] = {}
         captured_ledger_entries: list[dict[str, Any]] = []
@@ -187,6 +194,8 @@ async def send_message_stream(
             user_id=user_id,
             trace_id=trace_id,
             memory=memory,
+            user_key=user_key,
+            allow_shared_fallback=allow_fallback,
         ):
             if event.event_type == "final":
                 captured_narrative = event.payload

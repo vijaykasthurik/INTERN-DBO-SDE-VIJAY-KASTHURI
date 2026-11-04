@@ -17,6 +17,7 @@ EventType = Literal[
     "final",
     "error",
     "done",
+    "provider_switch",
 ]
 
 

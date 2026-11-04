@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Cpu,
   CheckCircle2,
@@ -9,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   Terminal,
+  Key,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
@@ -16,6 +18,7 @@ import { Button } from "../components/ui/Button";
 import { Dialog } from "../components/ui/Dialog";
 import { api, type SystemProvidersResponse } from "../lib/api";
 import { useAuthStore } from "../stores/authStore";
+import { useAIConnectionStore } from "../stores/aiConnectionStore";
 
 interface MetricItem {
   id: string;
@@ -47,6 +50,7 @@ const DEFAULT_METRICS: MetricItem[] = [
 
 export const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { connection, sharedPool, fetchConnection, fetchSharedStatus } = useAIConnectionStore();
   const [providersData, setProvidersData] = useState<SystemProvidersResponse | null>(null);
   const [healthStatus, setHealthStatus] = useState<string>("checking...");
   const [metrics, setMetrics] = useState<MetricItem[]>(DEFAULT_METRICS);
@@ -85,7 +89,9 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     loadDiagnostics();
-  }, []);
+    fetchConnection();
+    fetchSharedStatus();
+  }, [fetchConnection, fetchSharedStatus]);
 
   const handleAddMetric = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +215,41 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+
+            {/* BYOK & SHARED MULTI-KEY POOL SUMMARY */}
+            <div className="pt-3 border-t border-hairline space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-ink">BYOK & Shared Key Pool</span>
+                <Link
+                  to="/profile"
+                  className="text-[11px] font-medium text-accent-indigo hover:underline flex items-center gap-1"
+                >
+                  <Key className="w-3 h-3" />
+                  <span>Manage in Profile</span>
+                </Link>
+              </div>
+
+              <div className="p-3 bg-surface/50 rounded-16 border border-hairline space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-muted">Groq Pool Status:</span>
+                  <span className="font-semibold text-ink">
+                    {sharedPool?.groq_active_keys ?? 7} of 7 Keys Active
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-muted">Hourly Free Quota:</span>
+                  <span className="font-mono text-ink">
+                    {sharedPool?.user_hourly_remaining ?? 30} / {sharedPool?.user_hourly_limit ?? 30}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-muted">Personal Key:</span>
+                  <span className="font-semibold text-ink">
+                    {connection?.connected ? `${connection.provider_id?.toUpperCase()} (${connection.masked_key})` : "None (Demo Mode)"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/ui/Toast";
 import { Navbar } from "./components/Navbar";
 import { CommandPalette } from "./components/CommandPalette";
+import { ConnectAIPopup } from "./components/ConnectAIPopup";
 import { useAuthStore } from "./stores/authStore";
 
 // Route-level code splitting
@@ -28,6 +29,9 @@ const ReportsPage = lazy(() =>
 );
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
+const ProfilePage = lazy(() =>
+  import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage }))
 );
 const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage }))
@@ -64,6 +68,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/dashboards" element={<DashboardsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
@@ -85,6 +90,7 @@ export const App: React.FC = () => {
             <div className="min-h-screen bg-white font-sans text-ink flex flex-col relative selection:bg-accent-indigo/20">
               <Navbar />
               <CommandPalette />
+              <ConnectAIPopup />
               <main className="flex-1 w-full">
                 <AnimatedRoutes />
               </main>

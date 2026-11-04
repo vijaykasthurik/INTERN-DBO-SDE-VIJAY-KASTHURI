@@ -21,6 +21,7 @@ import { ChartRenderer } from "../features/workspace/ChartRenderer";
 import { ChatStreamService } from "../features/workspace/ChatStreamService";
 import { api, type ChatSession, type EvidenceEntry } from "../lib/api";
 import { useDatasetStore } from "../stores/datasetStore";
+import { useAIConnectionStore } from "../stores/aiConnectionStore";
 
 interface MessageItem {
   id: string;
@@ -41,6 +42,8 @@ interface MessageItem {
 
 export const WorkspacePage: React.FC = () => {
   const { fetchDatasets } = useDatasetStore();
+  const { connection, openConnectModal } = useAIConnectionStore();
+  const [providerSwitchAlert, setProviderSwitchAlert] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -193,6 +196,9 @@ export const WorkspacePage: React.FC = () => {
           checks: ver.checks,
         });
       },
+      onProviderSwitch: (info) => {
+        setProviderSwitchAlert(info.reason);
+      },
       onToken: (token) => {
         setMessages((prev) =>
           prev.map((m) =>
@@ -309,6 +315,41 @@ export const WorkspacePage: React.FC = () => {
               </Button>
             </div>
           </div>
+
+          {/* BYOK EXPIRY OR PROVIDER SWITCH BANNER */}
+          {connection?.connected && (connection.status === "invalid" || connection.status === "quota_exhausted") && (
+            <div className="bg-amber-50/90 border-b border-amber-200 px-6 py-2 flex items-center justify-between text-xs text-amber-900 animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Your {connection.provider_id?.toUpperCase()} key {connection.status === "quota_exhausted" ? "ran out of credit" : "expired or encountered an error"}. Using shared server model for now.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openConnectModal(connection.provider_id)}
+                className="font-semibold underline hover:text-amber-950 ml-3 whitespace-nowrap"
+              >
+                Update key
+              </button>
+            </div>
+          )}
+
+          {providerSwitchAlert && (
+            <div className="bg-indigo-50/90 border-b border-indigo-200 px-6 py-2 flex items-center justify-between text-xs text-indigo-900 animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>{providerSwitchAlert}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProviderSwitchAlert(null)}
+                className="text-indigo-600 hover:text-indigo-950 text-xs font-medium ml-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {/* CHAT MESSAGES SCROLL AREA */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">

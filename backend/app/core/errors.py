@@ -77,6 +77,18 @@ class PermissionDeniedError(LumenException):
         )
 
 
+class SecurityViolationError(LumenException):
+    def __init__(
+        self, message: str = "Security policy violation", details: dict[str, Any] | None = None
+    ) -> None:
+        super().__init__(
+            message=message,
+            code="SECURITY_VIOLATION",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details=details,
+        )
+
+
 async def lumen_exception_handler(request: Request, exc: LumenException) -> JSONResponse:
     """Handle custom Lumen exceptions uniformly."""
     trace_id = getattr(request.state, "trace_id", None)

@@ -25,14 +25,19 @@ class Settings(BaseSettings):
     api_prefix: str = Field(default="/api/v1", alias="API_PREFIX")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
-    # Security
+    # Security & Encryption
     secret_key: str = Field(
         default="development-insecure-secret-key-32-chars-minimum-required",
         alias="SECRET_KEY",
     )
+    key_encryption_secret: str = Field(
+        default="",
+        alias="KEY_ENCRYPTION_SECRET",
+    )
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=60, alias="JWT_EXPIRE_MINUTES")
     jwt_refresh_expire_days: int = Field(default=7, alias="JWT_REFRESH_EXPIRE_DAYS")
+    shared_pool_hourly_limit: int = Field(default=30, alias="SHARED_POOL_HOURLY_LIMIT")
 
     # Storage & Database
     database_url: str = Field(default="sqlite:///./data/lumen.db", alias="DATABASE_URL")
@@ -61,10 +66,30 @@ class Settings(BaseSettings):
         alias="GEMINI_MODEL_STRONG",
     )
 
-    # Groq
+    # Groq Shared Pool
+    groq_api_url: str = Field(
+        default="https://api.groq.com/openai/v1/chat/completions",
+        alias="GROQ_API_URL",
+    )
+    groq_model: str = Field(default="openai/gpt-oss-20b", alias="GROQ_MODEL")
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
-    groq_model_fast: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL_FAST")
-    groq_model_strong: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL_STRONG")
+    groq_api_key_1: str = Field(default="", alias="GROQ_API_KEY_1")
+    groq_api_key_2: str = Field(default="", alias="GROQ_API_KEY_2")
+    groq_api_key_3: str = Field(default="", alias="GROQ_API_KEY_3")
+    groq_api_key_4: str = Field(default="", alias="GROQ_API_KEY_4")
+    groq_api_key_5: str = Field(default="", alias="GROQ_API_KEY_5")
+    groq_api_key_6: str = Field(default="", alias="GROQ_API_KEY_6")
+    groq_api_key_7: str = Field(default="", alias="GROQ_API_KEY_7")
+    groq_model_fast: str = Field(default="openai/gpt-oss-20b", alias="GROQ_MODEL_FAST")
+    groq_model_strong: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL_STRONG")
+
+    # Z.AI Shared
+    zai_api_key: str = Field(default="", alias="ZAI_API_KEY")
+    zai_model: str = Field(default="glm-4.5", alias="ZAI_MODEL")
+
+    # Hugging Face Shared
+    hf_api_key: str = Field(default="", alias="HF_API_KEY")
+    hf_model: str = Field(default="meta-llama/Llama-3.1-8B-Instruct", alias="HF_MODEL")
 
     # OpenRouter
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
@@ -96,6 +121,22 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Return CORS origins as a list of trimmed strings."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def groq_keys_pool(self) -> list[str]:
+        """Collect all matching GROQ_API_KEY_<n> or primary GROQ_API_KEY from environment or settings."""
+        import os
+
+        keys: list[str] = []
+        for i in range(1, 21):
+            val = getattr(self, f"groq_api_key_{i}", None) or os.getenv(f"GROQ_API_KEY_{i}")
+            if val and val.strip():
+                keys.append(val.strip())
+
+        if not keys and self.groq_api_key:
+            keys.append(self.groq_api_key.strip())
+
+        return keys
 
     @property
     def fallback_providers_list(self) -> list[str]:

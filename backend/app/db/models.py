@@ -41,6 +41,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    allow_shared_fallback: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     datasets: Mapped[list["Dataset"]] = relationship(
@@ -51,6 +52,9 @@ class User(Base):
     )
     metrics: Mapped[list["MetricDefinition"]] = relationship(
         "MetricDefinition", back_populates="user", cascade="all, delete-orphan"
+    )
+    api_keys: Mapped[list["UserApiKey"]] = relationship(
+        "UserApiKey", back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -192,6 +196,39 @@ class MetricDefinition(Base):
     dataset: Mapped[Optional["Dataset"]] = relationship("Dataset", back_populates="metrics")
 
 
+class UserApiKey(Base):
+    """Encrypted BYOK AI credentials and automatic model configuration."""
+
+    __tablename__ = "user_api_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    provider_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(128), default="Primary Key", nullable=False)
+    ciphertext: Mapped[str] = mapped_column(Text, nullable=False)
+    key_id: Mapped[str] = mapped_column(String(32), default="v1", nullable=False)
+    key_hint: Mapped[str] = mapped_column(String(16), nullable=False)
+    base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    model_fast: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_strong: Mapped[str] = mapped_column(String(128), nullable=False)
+    capabilities: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    request_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="api_keys")
+
+
 # Compound Indexes for tenant lookup performance
 Index("ix_dataset_user_name", Dataset.user_id, Dataset.name, unique=True)
 Index("ix_metric_user_name", MetricDefinition.user_id, MetricDefinition.name, unique=True)
+Index("ix_user_api_key_user_provider", UserApiKey.user_id, UserApiKey.provider_id)

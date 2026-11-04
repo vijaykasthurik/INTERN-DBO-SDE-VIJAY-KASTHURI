@@ -50,7 +50,7 @@ async def test_router_all_providers_fail_graceful_error() -> None:
     router = LLMRouter(settings=settings)
 
     # Remove mock from providers map to force all configured to fail
-    router.providers["mock"].complete = None  # type: ignore
+    router.providers.pop("mock", None)
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     with respx.mock:
@@ -60,7 +60,7 @@ async def test_router_all_providers_fail_graceful_error() -> None:
 
         with pytest.raises(LLMProviderError) as exc_info:
             await router.complete([LLMMessage(role="user", content="Test prompt")])
-        assert "All LLM providers in fallback chain failed" in str(exc_info.value)
+        assert "All LLM providers" in str(exc_info.value)
 
 
 def test_circuit_breaker_transitions() -> None:
@@ -101,7 +101,7 @@ def test_router_get_provider_status() -> None:
     assert "gemini" in status
     assert "groq" in status
     assert status["mock"]["status"] == "healthy"
-    assert status["mock"]["is_primary"] is True
+    assert status[router.settings.llm_provider]["is_primary"] is True
 
 
 def test_budget_governor() -> None:

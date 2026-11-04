@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useAuthStore } from "../stores/authStore";
+import { useAIConnectionStore } from "../stores/aiConnectionStore";
 
 /**
  * Design constant: "capsule" (fully rounded half-circle ends) or "bottom-rounded" (rounded bottom corners).
@@ -23,8 +24,15 @@ export const NAV_VARIANT: "capsule" | "bottom-rounded" = "capsule";
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const { user, logout, isAuthenticated } = useAuthStore();
+  const { connection, fetchConnection, openConnectModal } = useAIConnectionStore();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchConnection();
+    }
+  }, [isAuthenticated, fetchConnection]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -137,8 +145,40 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
+          {/* AI CONNECTION STATUS CHIP */}
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={() => openConnectModal()}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-pill bg-surface/70 hover:bg-surface border border-hairline hover:border-hairline-dark transition-all select-none ml-2"
+              title={
+                connection?.connected
+                  ? `Connected: ${connection.provider_id?.toUpperCase()} (${connection.status})`
+                  : "Using Shared Demo Pool (Click to connect your own key)"
+              }
+            >
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  connection?.connected
+                    ? connection.status === "active"
+                      ? "bg-emerald-500 animate-pulse"
+                      : connection.status === "quota_exhausted" || connection.status === "rate_limited"
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
+                    : "bg-indigo-500"
+                )}
+              />
+              <span className="text-[11px] text-ink font-medium">
+                {connection?.connected
+                  ? connection.provider_id?.toUpperCase()
+                  : "Shared AI"}
+              </span>
+            </button>
+          )}
+
           {/* USER AVATAR MENU / LOGIN */}
-          <div className="pl-4 ml-2 border-l border-hairline relative">
+          <div className="pl-3 ml-2 border-l border-hairline relative">
             {isAuthenticated ? (
               <div className="relative">
                 <button
@@ -175,11 +215,18 @@ export const Navbar: React.FC = () => {
                         </p>
                       </div>
                       <Link
+                        to="/profile"
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-ink rounded-16 hover:bg-surface transition-colors"
+                      >
+                        <UserIcon className="w-3.5 h-3.5 text-accent-indigo" />
+                        AI Profile & Keys
+                      </Link>
+                      <Link
                         to="/settings"
                         className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-ink rounded-16 hover:bg-surface transition-colors"
                       >
-                        <UserIcon className="w-3.5 h-3.5 text-ink-muted" />
-                        Account Settings
+                        <Settings className="w-3.5 h-3.5 text-ink-muted" />
+                        System Settings
                       </Link>
                       <button
                         onClick={logout}

@@ -28,11 +28,16 @@ class GroqProvider(LLMProvider):
 
     BASE_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model_fast: str | None = None,
+        model_strong: str | None = None,
+    ) -> None:
         settings = get_settings()
         self.api_key = api_key or settings.groq_api_key
-        self.fast_model = settings.groq_model_fast or "llama-3.1-8b-instant"
-        self.strong_model = settings.groq_model_strong or "llama-3.3-70b-versatile"
+        self.fast_model = model_fast or settings.groq_model_fast or "llama-3.1-8b-instant"
+        self.strong_model = model_strong or settings.groq_model_strong or "llama-3.3-70b-versatile"
         self.client = httpx.AsyncClient(timeout=30.0)
 
     def _select_model(self, tier: Literal["fast", "strong"]) -> str:
@@ -119,8 +124,9 @@ class GroqProvider(LLMProvider):
                 raise LLMServerError(
                     f"Groq server error ({status}): {e}", provider="groq", status_code=status
                 ) from e
+            body_text = e.response.text if hasattr(e, "response") and e.response is not None else str(e)
             raise LLMProviderError(
-                f"Groq HTTP error ({status}): {e}", provider="groq", status_code=status
+                f"Groq HTTP error ({status}): {body_text}", provider="groq", status_code=status
             ) from e
         except httpx.TimeoutException as e:
             raise LLMTimeoutError(f"Groq request timed out: {e}", provider="groq") from e

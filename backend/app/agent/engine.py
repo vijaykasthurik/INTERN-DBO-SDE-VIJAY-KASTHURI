@@ -73,6 +73,8 @@ class AgentEngine:
         trace_id: str,
         memory: AgentMemory | None = None,
         governor: BudgetGovernor | None = None,
+        user_key: Any = None,
+        allow_shared_fallback: bool = True,
     ) -> AsyncGenerator[AgentEvent, None]:
         """Execute question pipeline emitting live SSE events."""
         start_time = time.perf_counter()

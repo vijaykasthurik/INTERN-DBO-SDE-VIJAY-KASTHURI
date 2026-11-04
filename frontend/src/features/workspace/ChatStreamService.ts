@@ -15,7 +15,8 @@ export interface SSEEvent {
     | "token"
     | "final"
     | "error"
-    | "done";
+    | "done"
+    | "provider_switch";
   trace_id: string;
   timestamp: string;
   payload: Record<string, unknown>;
@@ -31,6 +32,7 @@ export interface StreamCallbacks {
   onVerify?: (verification: { status: string; confidence: "High" | "Medium" | "Low"; reasons: string[]; checks: Record<string, boolean> }) => void;
   onChart?: (spec: Record<string, unknown>) => void;
   onToken?: (token: string) => void;
+  onProviderSwitch?: (switchInfo: { reason: string; from_provider: string; to_provider: string }) => void;
   onFinal?: (finalData: {
     direct_answer: string;
     business_insight?: string;
@@ -197,6 +199,13 @@ export class ChatStreamService {
           anomalies: Array.isArray(p.anomalies)
             ? (p.anomalies as Array<{ row_id: string; value: number; reason: string }>)
             : undefined,
+        });
+        break;
+      case "provider_switch":
+        callbacks.onProviderSwitch?.({
+          reason: String(p.reason || ""),
+          from_provider: String(p.from_provider || ""),
+          to_provider: String(p.to_provider || ""),
         });
         break;
       case "done":

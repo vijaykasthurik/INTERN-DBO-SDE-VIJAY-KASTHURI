@@ -106,6 +106,20 @@
   - [x] Media Assets & Video: 10 high-resolution screenshots in `docs/media/screenshots/` across 375px, 768px, 1024px, and 1440px viewports; interactive product demo video recorded at 60fps in `docs/media/demo/lumen_interactive_demo.webm`
   - [x] Secret Audit: Exhaustive scan across entire git commit history confirmed zero API keys or secrets leaked
   - [x] Acceptance Gate: `make check`, `make smoke`, `make eval` (32/32 benchmarks passed with 100.0% accuracy) all passing green; tagged `phase-10-complete`
+- [x] **Phase 11 (Replacement): "Bring Your Own Key" (BYOK) + Smart Multi-Provider Fallback**
+  - [x] Provider Registry Catalog (`backend/app/llm/catalog.py`) with 12 declarative provider definitions (OpenAI, Gemini, Anthropic, Groq, DeepSeek, OpenRouter, Mistral, Together, xAI, Z.AI, Hugging Face, Custom).
+  - [x] Real-time Key Validation & Capability Probing (`backend/app/llm/validator.py`) with 10s timeout, status classification (`active`, `invalid_key`, `quota_exhausted`, `rate_limited`, `network_blocked`), model auto-adaptation heuristics, and rate limiting.
+  - [x] Cryptographic Security at Rest (`backend/app/core/encryption.py`): AES-256-GCM encryption with version prefix (`v1:`), untracked dev key generator, log scrubbing of API key patterns, SSRF outbound IP validation (blocks private/loopback/cloud metadata 169.254 ranges).
+  - [x] Shared Server Multi-Key Pool (`backend/app/llm/pool.py`): `GroqKeyPool` managing 7 live server keys with round-robin rotation, 60s cooldown on 429, invalidation on 401/403, and automatic failover down the chain to Z.AI (GLM-4.5) -> Hugging Face -> Mock.
+  - [x] BYOK Endpoints (`backend/app/api/byok.py`): Catalog, validation, connect, status, live test probe, preference toggle, and hard-delete key endpoints.
+  - [x] Frontend "Connect your AI" Popup (`frontend/src/components/ConnectAIPopup.tsx`): Searchable provider grid, masked input, live validation with model detection and capability badges, advanced overrides, and security notice.
+  - [x] Floating Capsule Navbar AI Chip (`frontend/src/components/Navbar.tsx`): Status dot (green/amber/red/indigo) reflecting live provider health and one-click access.
+  - [x] Profile Management Page (`frontend/src/pages/ProfilePage.tsx`): Connection details, masked key (`...last4`), usage statistics, test probe, replace/remove key, fallback toggle, and shared pool status.
+  - [x] Non-blocking Expiry Banner & SSE `provider_switch` event in Workspace (`WorkspacePage.tsx` and `ChatStreamService.ts`).
+  - [x] Live Provider Diagnostics (`scripts/check_llm.py`): All 7 Groq keys probed and verified 100% online (`openai/gpt-oss-20b`); Z.AI and Hugging Face quota states gracefully identified.
+  - [x] Automated Drills & Isolation Suite (`test_phase11_drills.py`, `test_byok_api_and_fallback.py`, `test_byok_security_and_catalog.py`): 100% passing tests for tenant isolation, 429 rotation, fallback trigger, strict-mode refusal, and zero credential leakage.
+  - [x] Playwright BYOK E2E Test (`frontend/e2e/byok.spec.ts`).
+  - [x] Acceptance Gate: All checks passing green (`ruff`, `mypy`, `pytest` with 83.91% coverage, frontend lint/typecheck/vitest/build, smoke test, eval benchmark 100%); tagged `phase-11-complete`
 
 ---
 

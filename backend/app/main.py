@@ -11,6 +11,7 @@ from fastapi.responses import Response
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.byok import router as byok_router
 from app.api.chat import router as chat_router
 from app.api.dashboards import router as dashboards_router
 from app.api.datasets import router as datasets_router
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
 
     # Routers
     app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(byok_router, prefix="/api/v1")
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(dashboards_router, prefix="/api/v1")
     app.include_router(reports_router, prefix="/api/v1")

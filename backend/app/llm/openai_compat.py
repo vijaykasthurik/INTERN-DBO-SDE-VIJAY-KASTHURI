@@ -133,8 +133,9 @@ class OpenAICompatProvider(LLMProvider):
                     provider="openai_compat",
                     status_code=status,
                 ) from e
+            body_text = e.response.text if hasattr(e, "response") and e.response is not None else str(e)
             raise LLMProviderError(
-                f"OpenAI-compat HTTP error ({status}): {e}",
+                f"OpenAI-compat HTTP error ({status}): {body_text}",
                 provider="openai_compat",
                 status_code=status,
             ) from e
