@@ -22,13 +22,14 @@ from app.agent.router import IntentRouter
 from app.agent.verifier import Verifier
 from app.config import get_settings
 from app.data.ingestion import DataIngestionPipeline
-from app.llm.base import LLMMessage, LLMResponse
 from app.llm.budget import BudgetGovernor
 from app.llm.router import LLMRouter
+from app.llm.structured import NarrativeDraft, PlannedAction, complete_json
 from app.tools.anomaly_tool import AnomalyTool
 from app.tools.chart_tool import ChartTool
 from app.tools.forecast_tool import ForecastTool
 from app.tools.hypothesis_tool import HypothesisTool
+from app.tools.overview_tool import DatasetOverviewTool
 from app.tools.pandas_tool import PandasTool
 from app.tools.search_tool import SearchTool
 from app.tools.sql_tool import SQLTool
@@ -88,6 +89,7 @@ class AgentEngine:
         user_id: int,
         user_key: Any = None,
         allow_shared_fallback: bool = True,
+        analysis_id: str | None = None,
     ) -> PlanDAG | None:
         """Dynamically generate execution plan and SQL query using active live LLM provider."""
         schema_summary = _get_table_schema_summary(db_path, allowed_tables)
@@ -118,25 +120,8 @@ Respond ONLY with valid JSON conforming to:
   "description": "Short explanation of the step"
 }}"""
 
-        res = await self.llm_router.complete(
-            messages=[LLMMessage(role="user", content=prompt)],
-            tier="strong",
-            user_id=user_id,
-            user_key=user_key,
-            allow_shared_fallback=allow_shared_fallback,
-        )
-        if not isinstance(res, LLMResponse):
-            raise TypeError("The LLM provider returned a stream for a non-streaming planning request.")
-
-        content = str(res.content).strip()
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-        elif "{" in content and "}" in content:
-            content = content[content.find("{"):content.rfind("}") + 1].strip()
-
-        data = json.loads(content)
+        action = await complete_json(self.llm_router, prompt, PlannedAction, user_id=user_id, analysis_id=analysis_id, user_key=user_key, allow_shared_fallback=allow_shared_fallback)
+        data = action.model_dump()
         tool = data.get("tool", "sql_tool")
         desc = data.get("description", "Execute analytical query")
 
@@ -204,6 +189,7 @@ Respond ONLY with valid JSON conforming to:
         user_id: int,
         user_key: Any = None,
         allow_shared_fallback: bool = True,
+        analysis_id: str | None = None,
     ) -> FinalNarrative | None:
         """Compose grounded, executive narrative using active live LLM strictly from Evidence Ledger."""
         if not ledger.entries:
@@ -241,25 +227,8 @@ Respond ONLY with valid JSON conforming to:
   "suggested_followups": ["...", "...", "..."]
 }}"""
 
-        res = await self.llm_router.complete(
-            messages=[LLMMessage(role="user", content=prompt)],
-            tier="strong",
-            user_id=user_id,
-            user_key=user_key,
-            allow_shared_fallback=allow_shared_fallback,
-        )
-        if not isinstance(res, LLMResponse):
-            raise TypeError("The LLM provider returned a stream for a non-streaming narration request.")
-
-        content = str(res.content).strip()
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-        elif "{" in content and "}" in content:
-            content = content[content.find("{"):content.rfind("}") + 1].strip()
-
-        data = json.loads(content)
+        draft = await complete_json(self.llm_router, prompt, NarrativeDraft, user_id=user_id, analysis_id=analysis_id, user_key=user_key, allow_shared_fallback=allow_shared_fallback)
+        data = draft.model_dump()
 
         chart_spec = None
         sql_code = None
@@ -355,6 +324,7 @@ Respond ONLY with valid JSON conforming to:
             return
         yield AgentEvent(event_type="route", trace_id=trace_id, payload={"lane": route.lane, "confidence": route.confidence, "reason": route.reason, "resolved_question": resolved_question})
         tools_registry: dict[str, Any] = {
+            "overview_tool": DatasetOverviewTool(db_path,allowed_tables),
             "sql_tool": SQLTool(db_path=db_path, allowed_tables=allowed_tables),
             "pandas_tool": PandasTool(),
             "chart_tool": ChartTool(),
@@ -366,7 +336,9 @@ Respond ONLY with valid JSON conforming to:
 
         # Step 4: Execution Planning (DAG)
         dag: PlanDAG | None = None
-        if is_live:
+        if route.lane == "dataset_overview":
+            dag = PlanDAG(steps=[PlanStep(id="overview",tool="overview_tool",description="Profile every current table and its data quality",parameters={})])
+        elif is_live:
             try:
                 dag = await self.plan_with_llm(
                     question=resolved_question,
@@ -374,6 +346,7 @@ Respond ONLY with valid JSON conforming to:
                     allowed_tables=allowed_tables,
                     db_path=db_path,
                     user_id=user_id,
+                    analysis_id=trace_id,
                     user_key=user_key,
                     allow_shared_fallback=allow_shared_fallback,
                 )
@@ -454,13 +427,14 @@ Respond ONLY with valid JSON conforming to:
 
         # Step 6: Draft Narration (Dynamic Live LLM strictly from Evidence Ledger)
         draft_narrative: FinalNarrative | None = None
-        if is_live and route.lane != "code_request":
+        if is_live and route.lane not in {"code_request", "dataset_overview"}:
             try:
                 draft_narrative = await self.narrate_with_llm(
                     question=resolved_question,
                     lane=route.lane,
                     ledger=ledger,
                     user_id=user_id,
+                    analysis_id=trace_id,
                     user_key=user_key,
                     allow_shared_fallback=allow_shared_fallback,
                 )
@@ -497,6 +471,12 @@ Respond ONLY with valid JSON conforming to:
         # recorded in the ledger; the verifier still checks and scores prose separately.
         if verification.sanitized_answer and route.lane != "code_request":
             draft_narrative.direct_answer = verification.sanitized_answer
+        for field in ("business_insight", "how_i_got_this"):
+            checked = self.verifier.verify(draft_answer=getattr(draft_narrative, field), ledger=ledger)
+            setattr(draft_narrative, field, checked.sanitized_answer)
+            if checked.ungrounded_numbers:
+                verification.reasons.extend(checked.reasons)
+                verification.confidence = "Low"
         draft_narrative.confidence = verification.confidence
 
         yield AgentEvent(

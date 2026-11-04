@@ -38,7 +38,21 @@ class Narrator:
         sql_code = sql_entries[-1].code if sql_entries else None
         pandas_code = pandas_entries[-1].code if pandas_entries else None
 
-        if lane == "code_request":
+        if lane == "dataset_overview":
+            sections = []
+            for entry in ledger.entries:
+                if entry.tool != "overview_tool" or entry.status != "success":
+                    continue
+                for table in entry.result_preview["tables"]:
+                    sections.append(f"### {table['table']}\n{table['row_count']:,} rows; {table['column_count']} columns. Data quality: {table['quality_score']}/100.")
+                    for column in table["columns"]:
+                        sections.append(f"- **{column['column']}** ({column['type']}): {column['description']} Nulls: {column['null_count']}; distinct: {column['distinct_count']}; range: {column['min']} to {column['max']}.")
+                    for issue in table["quality_issues"]:
+                        sections.append(f"- Quality observation: {issue['description']}")
+                for edge in entry.result_preview["relationships"]:
+                    sections.append(f"Relationship candidate: {edge['from_table']}.{edge['from_column']} to {edge['to_table']}.{edge['to_column']}; overlap {edge['overlap_ratio']}.")
+            answer = "\n\n".join(sections) or "No current dataset profile was recorded."
+        elif lane == "code_request":
             code_sections = []
             if sql_code:
                 code_sections.append(f"**Executed DuckDB SQL:**\n```sql\n{sql_code}\n```")
@@ -71,7 +85,7 @@ class Narrator:
         insight = "The result reflects the rows returned by the executed analytical query."
         if lane == "code_request":
             insight = "The code shown above is the code recorded for the successful execution step."
-        if not sql_entries and not pandas_entries:
+        if not sql_entries and not pandas_entries and lane != "dataset_overview":
             confidence = "Low"
 
         return FinalNarrative(

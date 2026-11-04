@@ -200,6 +200,7 @@ class LLMRouter(LLMProvider):
         tier: Literal["fast", "strong"] = "fast",
         stream: bool = False,
         user_id: int | None = None,
+        analysis_id: str | None = None,
         user_key: UserApiKey | None = None,
         allow_shared_fallback: bool = True,
         on_provider_switch: Callable[[str, str, str], Coroutine[Any, Any, None]] | None = None,
@@ -245,7 +246,7 @@ class LLMRouter(LLMProvider):
 
         # 2. SHARED SERVER CHAIN
         if user_id:
-            allowed, remaining = check_and_record_shared_quota(user_id)
+            allowed, remaining = check_and_record_shared_quota(user_id, analysis_id)
             if not allowed:
                 raise LLMRateLimitError(
                     "You have reached the free shared model quota (30 requests/hour). Connect your own API key in Profile for unlimited inquiries."

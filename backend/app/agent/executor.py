@@ -83,7 +83,15 @@ class StepExecutor:
             try:
                 # Enforce per-step timeout
                 async with asyncio.timeout(self.per_step_timeout_sec):
-                    if step.tool == "sql_tool":
+                    if step.tool == "overview_tool":
+                        loop = asyncio.get_running_loop()
+                        result_preview = await loop.run_in_executor(None, tool_instance.execute)
+                        row_count = len(result_preview["tables"])
+                        code = "\n".join(result_preview["queries"])
+                        status = "success"
+                        error_msg = None
+                        break
+                    elif step.tool == "sql_tool":
                         sql = step.parameters.get("sql", "SELECT 1;")
                         # Run blocking duckdb call in default thread executor
                         loop = asyncio.get_running_loop()
@@ -237,14 +245,7 @@ class StepExecutor:
 
                     else:
                         # Fallback for other specialist tools
-                        result_preview = {
-                            "status": "completed",
-                            "output": f"Tool {step.tool} executed successfully.",
-                        }
-                        row_count = 1
-                        status = "success"
-                        error_msg = None
-                        break
+                        raise ValueError(f"No execution adapter is registered for {step.tool}.")
 
             except Exception as e:
                 error_msg = str(e)
@@ -284,6 +285,9 @@ class StepExecutor:
                 "step_result",
                 {
                     "step_id": step.id,
+                    "tool": step.tool,
+                    "code": code,
+                    "result_preview": result_preview,
                     "status": status,
                     "row_count": row_count,
                     "runtime_ms": round(elapsed_ms, 2),

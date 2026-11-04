@@ -7,6 +7,7 @@ Manages:
 4. Per-user shared quota tracking (default 30 questions/hour).
 """
 
+import threading
 import time
 from collections.abc import AsyncGenerator
 from typing import Any, Literal
@@ -32,27 +33,28 @@ logger = structlog.get_logger(__name__)
 _USER_SHARED_HOURLY_USAGE: dict[int, list[float]] = {}
 
 
-def check_and_record_shared_quota(user_id: int) -> tuple[bool, int]:
-    """Verify user has not exceeded hourly limit on shared server pool.
+_USER_SHARED_ANALYSES: dict[int, dict[str, float]] = {}
+_QUOTA_LOCK = threading.Lock()
 
-    Returns (allowed: bool, remaining_quota: int).
-    """
-    settings = get_settings()
-    limit = settings.shared_pool_hourly_limit
+
+def check_and_record_shared_quota(user_id: int, analysis_id: str | None = None) -> tuple[bool, int]:
+    """Charge one question once, including its planning, repairs and narration."""
+    limit = get_settings().shared_pool_hourly_limit
     now = time.time()
-    one_hour_ago = now - 3600.0
-
-    history = _USER_SHARED_HOURLY_USAGE.get(user_id, [])
-    active = [t for t in history if t > one_hour_ago]
-
-    if len(active) >= limit:
+    cutoff = now - 3600
+    with _QUOTA_LOCK:
+        active = [stamp for stamp in _USER_SHARED_HOURLY_USAGE.get(user_id, []) if stamp > cutoff]
+        analyses = {key: stamp for key, stamp in _USER_SHARED_ANALYSES.get(user_id, {}).items() if stamp > cutoff}
         _USER_SHARED_HOURLY_USAGE[user_id] = active
-        return False, 0
-
-    active.append(now)
-    _USER_SHARED_HOURLY_USAGE[user_id] = active
-    remaining = max(0, limit - len(active))
-    return True, remaining
+        _USER_SHARED_ANALYSES[user_id] = analyses
+        if analysis_id is not None and analysis_id in analyses:
+            return True, max(0, limit - len(active))
+        if len(active) >= limit:
+            return False, 0
+        active.append(now)
+        if analysis_id is not None:
+            analyses[analysis_id] = now
+        return True, max(0, limit - len(active))
 
 
 def get_user_shared_quota_remaining(user_id: int) -> int:

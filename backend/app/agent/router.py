@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 RouteLane = Literal[
+    "dataset_overview",
     "quick_lookup",
     "analysis",
     "investigation",
@@ -33,6 +34,9 @@ class IntentRouter:
     def route(self, question: str) -> RouteDecision:
         """Route user query using deterministic keyword parsing and heuristic intent mapping."""
         q = question.strip().lower()
+
+        if "what is in" in q or "explain each" in q or re.search(r"describe.*(files|tables|datasets)",q):
+            return RouteDecision(lane="dataset_overview", confidence=1.0, reason="Inspect current uploaded table profiles and relationships.")
 
         # 1. Ambiguous or underspecified queries -> clarify lane
         if q in (
