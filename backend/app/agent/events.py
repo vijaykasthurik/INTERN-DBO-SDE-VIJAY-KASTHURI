@@ -22,6 +22,7 @@ EventType = Literal[
 
 class AgentEvent(BaseModel):
     """Standardized SSE payload dispatched during agent execution."""
+
     event_type: EventType
     trace_id: str
     timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())

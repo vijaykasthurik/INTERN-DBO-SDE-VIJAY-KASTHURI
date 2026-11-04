@@ -31,7 +31,16 @@
   - [x] Semantic catalog with LLM/heuristic descriptions & user-editable metric definitions (PATCH endpoint)
   - [x] TF-IDF semantic embedding search ("turnover" -> revenue verification)
   - [x] Acceptance Gate: 19 unit + integration tests green (edge cases, isolation, ground truth), coverage 85.13%
-- [ ] **Phase 3: LLM layer, mock provider, safety**
+- [x] **Phase 3: LLM layer, mock provider, safety**
+  - [x] Unified `LLMProvider` interface with token & pricing accounting across 8+ models
+  - [x] Hardened SQL Validator using `sqlglot` AST parsing (SELECT-only, table whitelist, LIMIT injection, DDL/DML rejection)
+  - [x] Restricted-AST Pandas Sandbox running in isolated subprocess with timeout and safe builtins
+  - [x] InjectionDefense layer wrapping untrusted CSV cells in `<untrusted_data>` blocks with system hierarchy
+  - [x] Fully implemented raw REST adapters (httpx) for Gemini, Groq, OpenRouter, and OpenAI-compatible endpoints
+  - [x] LLM Router with ordered fallback chains, TokenBucket rate limiting, and CircuitBreaker error recovery
+  - [x] Live provider health and status diagnostics exposed at `/providers/status` and `/api/v1/admin/providers/status`
+  - [x] BudgetGovernor capping steps, token counts, and elapsed duration per question
+  - [x] Acceptance Gate: 111-item malicious/invalid SQL & Pandas corpus rejected, prompt injection tests pass, fallback chain verified (429 -> fallback success, all fail -> graceful error), safety coverage 97.22%, overall backend coverage 84.88%
 - [ ] **Phase 4: Agent engine core (PEVN) + streaming**
 - [ ] **Phase 5: Advanced tools, Verifier, cache, governor**
 - [ ] **Phase 6: Reports, observability, evaluation harness**
@@ -47,3 +56,5 @@
 2. **Tenant Isolation**: Every database query and DuckDB table access strictly scoped to authenticated `user_id`. Verified via adversarial cross-user isolation test.
 3. **Robust Ingestion**: Auto-sniffing for delimiters (comma, semicolon, tab, pipe) and encodings (UTF-8, UTF-8-BOM, Latin-1, CP1252), with automatic escaping of SQL keyword columns (`select_val`, `from_val`).
 4. **Data Health Scoring**: Explainable 0-100 score evaluating duplicates, missing values, constant columns, and out-of-bound numerical constraints.
+5. **AST Security & Execution Isolation**: SQL validation strictly uses `sqlglot` DuckDB AST parsing enforcing SELECT-only statements and automatic LIMIT capping. Pandas execution operates in an isolated subprocess with restricted safe builtins and timeout protection.
+6. **Provider Fallback & Resilience**: Ordered fallback chain with token bucket rate limiting and circuit breakers ensures seamless recovery from 429 rate limits or upstream 5xx errors.

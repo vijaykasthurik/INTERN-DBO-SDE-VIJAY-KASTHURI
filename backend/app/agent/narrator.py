@@ -10,6 +10,7 @@ from app.agent.verifier import VerificationResult
 
 class FinalNarrative(BaseModel):
     """Complete structured response package."""
+
     direct_answer: str
     business_insight: str
     how_i_got_this: str
@@ -21,7 +22,9 @@ class FinalNarrative(BaseModel):
 class Narrator:
     """Streams structured answer derived solely from verified Evidence Ledger items."""
 
-    def compose_final(self, ledger: EvidenceLedger, verification: VerificationResult) -> FinalNarrative:
+    def compose_final(
+        self, ledger: EvidenceLedger, verification: VerificationResult
+    ) -> FinalNarrative:
         """Compose final validated response from ledger items."""
         return FinalNarrative(
             direct_answer="Analysis derived from verified Evidence Ledger steps.",

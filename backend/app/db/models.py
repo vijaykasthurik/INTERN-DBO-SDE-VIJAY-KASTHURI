@@ -28,6 +28,7 @@ def utc_now() -> datetime:
 
 class Base(DeclarativeBase):
     """Base declarative class for all metadata models."""
+
     pass
 
 
@@ -59,7 +60,9 @@ class Dataset(Base):
     __tablename__ = "datasets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     duckdb_table_name: Mapped[str] = mapped_column(String(128), nullable=False)
     row_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -83,7 +86,9 @@ class DatasetColumn(Base):
     __tablename__ = "dataset_columns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    dataset_id: Mapped[int] = mapped_column(Integer, ForeignKey("datasets.id", ondelete="CASCADE"), index=True, nullable=False)
+    dataset_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("datasets.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     sanitized_name: Mapped[str] = mapped_column(String(128), nullable=False)
     data_type: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -99,7 +104,9 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     title: Mapped[str] = mapped_column(String(255), default="New Analysis", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
@@ -115,7 +122,9 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
-    session_id: Mapped[str] = mapped_column(String(64), ForeignKey("chat_sessions.id", ondelete="CASCADE"), index=True, nullable=False)
+    session_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("chat_sessions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     role: Mapped[str] = mapped_column(String(32), nullable=False)  # 'user' | 'assistant'
     content: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_ledger: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
@@ -166,10 +175,16 @@ class MetricDefinition(Base):
     __tablename__ = "metric_definitions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
-    dataset_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("datasets.id", ondelete="CASCADE"), index=True, nullable=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    dataset_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("datasets.id", ondelete="CASCADE"), index=True, nullable=True
+    )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    expression: Mapped[str] = mapped_column(Text, nullable=False)  # e.g. SUM(quantity * unit_price * (1 - discount))
+    expression: Mapped[str] = mapped_column(
+        Text, nullable=False
+    )  # e.g. SUM(quantity * unit_price * (1 - discount))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 

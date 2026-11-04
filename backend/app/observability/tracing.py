@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class ExecutionTrace(BaseModel):
     """Detailed trace metadata for a single user question execution."""
+
     trace_id: str
     user_id: int
     session_id: str

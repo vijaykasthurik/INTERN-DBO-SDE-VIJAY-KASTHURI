@@ -9,8 +9,28 @@ class DashboardTool:
     def plan_widgets(self, tables_catalog: dict[str, Any]) -> list[dict[str, Any]]:
         """Synthesize 4-6 widget specifications."""
         return [
-            {"id": "w1", "type": "kpi", "title": "Total Revenue", "query": "SELECT SUM(revenue) FROM sales"},
-            {"id": "w2", "type": "trend", "title": "Monthly Revenue Trend", "query": "SELECT month, SUM(revenue) FROM sales GROUP BY month"},
-            {"id": "w3", "type": "breakdown", "title": "Revenue by Region", "query": "SELECT region, SUM(revenue) FROM sales GROUP BY region"},
-            {"id": "w4", "type": "anomaly", "title": "Flagged Outliers", "query": "SELECT * FROM sales WHERE is_anomaly = true"},
+            {
+                "id": "w1",
+                "type": "kpi",
+                "title": "Total Revenue",
+                "query": "SELECT SUM(revenue) FROM sales",
+            },
+            {
+                "id": "w2",
+                "type": "trend",
+                "title": "Monthly Revenue Trend",
+                "query": "SELECT month, SUM(revenue) FROM sales GROUP BY month",
+            },
+            {
+                "id": "w3",
+                "type": "breakdown",
+                "title": "Revenue by Region",
+                "query": "SELECT region, SUM(revenue) FROM sales GROUP BY region",
+            },
+            {
+                "id": "w4",
+                "type": "anomaly",
+                "title": "Flagged Outliers",
+                "query": "SELECT * FROM sales WHERE is_anomaly = true",
+            },
         ]

@@ -31,11 +31,15 @@ class ChartTool:
         return {
             "title": {"text": title},
             "type": selected_type,
-            "xAxis": {"type": "category", "data": [d.get(columns[0]) for d in data[:20]]} if columns else {},
+            "xAxis": {"type": "category", "data": [d.get(columns[0]) for d in data[:20]]}
+            if columns
+            else {},
             "yAxis": {"type": "value"},
             "series": [
                 {
-                    "data": [d.get(columns[1] if len(columns) > 1 else columns[0]) for d in data[:20]],
+                    "data": [
+                        d.get(columns[1] if len(columns) > 1 else columns[0]) for d in data[:20]
+                    ],
                     "type": selected_type if selected_type != "forecast" else "line",
                 }
             ],

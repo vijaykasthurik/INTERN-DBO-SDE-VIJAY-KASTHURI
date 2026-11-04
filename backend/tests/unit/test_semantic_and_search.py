@@ -13,7 +13,15 @@ from app.tools.search_tool import SearchTool
 def test_semantic_search_turnover_maps_to_revenue():
     """Verify that query 'turnover' semantically maps to the 'revenue' column."""
     store = SemanticEmbeddingStore()
-    columns = ["order_id", "order_date", "customer_id", "product_id", "region", "revenue", "discount"]
+    columns = [
+        "order_id",
+        "order_date",
+        "customer_id",
+        "product_id",
+        "region",
+        "revenue",
+        "discount",
+    ]
     store.fit_terms(columns)
 
     search_tool = SearchTool(store)
@@ -55,10 +63,14 @@ def test_relationship_detection_sales_and_customers(tmp_path):
 
     db_path = ingest1["db_path"]
     detector = RelationshipDetector()
-    edges = detector.detect_table_relationships(db_path, [ingest1["table_name"], ingest2["table_name"]])
+    edges = detector.detect_table_relationships(
+        db_path, [ingest1["table_name"], ingest2["table_name"]]
+    )
 
     assert len(edges) >= 1
     # Check that customer_id join key was detected
-    c_edge = next(e for e in edges if "customer_id" in e["from_column"] or "customer_id" in e["to_column"])
+    c_edge = next(
+        e for e in edges if "customer_id" in e["from_column"] or "customer_id" in e["to_column"]
+    )
     assert c_edge["confidence"] >= 0.7
     assert c_edge["overlap_ratio"] >= 0.7

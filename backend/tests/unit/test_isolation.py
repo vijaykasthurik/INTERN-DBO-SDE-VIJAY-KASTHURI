@@ -50,13 +50,21 @@ def client(test_db_session):
 def test_user_tenant_data_isolation(client: TestClient):
     """Prove that User A cannot view, modify, or delete datasets belonging to User B."""
     # 1. Register User A and User B
-    client.post("/api/v1/auth/register", json={"email": "userA@lumen.ai", "password": "Password123!"})
-    login_a = client.post("/api/v1/auth/login", json={"email": "userA@lumen.ai", "password": "Password123!"}).json()
+    client.post(
+        "/api/v1/auth/register", json={"email": "userA@lumen.ai", "password": "Password123!"}
+    )
+    login_a = client.post(
+        "/api/v1/auth/login", json={"email": "userA@lumen.ai", "password": "Password123!"}
+    ).json()
     token_a = login_a["access_token"]
     headers_a = {"Authorization": f"Bearer {token_a}"}
 
-    client.post("/api/v1/auth/register", json={"email": "userB@lumen.ai", "password": "Password123!"})
-    login_b = client.post("/api/v1/auth/login", json={"email": "userB@lumen.ai", "password": "Password123!"}).json()
+    client.post(
+        "/api/v1/auth/register", json={"email": "userB@lumen.ai", "password": "Password123!"}
+    )
+    login_b = client.post(
+        "/api/v1/auth/login", json={"email": "userB@lumen.ai", "password": "Password123!"}
+    ).json()
     token_b = login_b["access_token"]
     headers_b = {"Authorization": f"Bearer {token_b}"}
 

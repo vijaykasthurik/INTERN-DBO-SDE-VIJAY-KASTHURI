@@ -9,6 +9,7 @@ from app.agent.ledger import EvidenceLedger
 
 class VerificationResult(BaseModel):
     """Output of skeptic sanity checks and cross-method numerical audits."""
+
     confidence: Literal["High", "Medium", "Low"]
     reasons: list[str]
     cross_check_passed: bool

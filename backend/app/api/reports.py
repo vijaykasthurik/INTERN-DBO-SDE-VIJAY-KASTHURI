@@ -11,6 +11,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 
 class ExportReportRequest(BaseModel):
     """Report export request parameter."""
+
     session_id: str
     format: str = "pdf"  # pdf or md
 

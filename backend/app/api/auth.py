@@ -23,23 +23,27 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 class RegisterRequest(BaseModel):
     """User registration payload."""
+
     email: EmailStr
     password: str = Field(min_length=8, description="Minimum 8 characters")
 
 
 class LoginRequest(BaseModel):
     """User login payload."""
+
     email: EmailStr
     password: str
 
 
 class RefreshRequest(BaseModel):
     """Token refresh payload."""
+
     refresh_token: str
 
 
 class AuthTokenResponse(BaseModel):
     """JWT Token response pair."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -47,6 +51,7 @@ class AuthTokenResponse(BaseModel):
 
 class UserProfileResponse(BaseModel):
     """Current authenticated user profile."""
+
     id: int
     email: str
     is_active: bool

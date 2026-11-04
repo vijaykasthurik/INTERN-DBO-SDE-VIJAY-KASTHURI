@@ -10,6 +10,7 @@ router = APIRouter(prefix="/dashboards", tags=["dashboards"])
 
 class DashboardResponse(BaseModel):
     """Auto-generated dashboard layout and widget specifications."""
+
     id: str
     title: str
     widgets: list[dict[str, Any]]

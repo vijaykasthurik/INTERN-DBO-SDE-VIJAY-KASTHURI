@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 class LedgerEntry(BaseModel):
     """Atomic step result stored in the Evidence Ledger."""
+
     step_id: str
     tool: str
     code: str

@@ -10,11 +10,13 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 class CreateSessionRequest(BaseModel):
     """Session initiation payload."""
+
     title: str | None = "New Analysis"
 
 
 class SessionResponse(BaseModel):
     """Chat session representation."""
+
     id: str
     title: str
     created_at: str
@@ -22,6 +24,7 @@ class SessionResponse(BaseModel):
 
 class EvidenceLedgerResponse(BaseModel):
     """Evidence ledger entry details."""
+
     message_id: str
     steps: list[dict[str, Any]]
     verified: bool

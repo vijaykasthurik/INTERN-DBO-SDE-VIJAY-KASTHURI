@@ -54,7 +54,9 @@ class ValidationError(LumenException):
 
 
 class AuthenticationError(LumenException):
-    def __init__(self, message: str = "Invalid credentials", details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str = "Invalid credentials", details: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(
             message=message,
             code="UNAUTHENTICATED",
@@ -64,7 +66,9 @@ class AuthenticationError(LumenException):
 
 
 class PermissionDeniedError(LumenException):
-    def __init__(self, message: str = "Access denied", details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str = "Access denied", details: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(
             message=message,
             code="PERMISSION_DENIED",

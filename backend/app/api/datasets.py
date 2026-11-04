@@ -39,7 +39,9 @@ class DatasetDetailResponse(BaseModel):
 
 class UpdateMetricRequest(BaseModel):
     name: str = Field(..., description="Metric identifier, e.g. 'gross_revenue'")
-    expression: str = Field(..., description="SQL aggregation expression, e.g. 'SUM(quantity * unit_price)'")
+    expression: str = Field(
+        ..., description="SQL aggregation expression, e.g. 'SUM(quantity * unit_price)'"
+    )
     description: str | None = None
 
 
@@ -154,10 +156,14 @@ async def update_dataset_metric(
     if not dataset:
         raise NotFoundError(f"Dataset with ID {dataset_id} not found")
 
-    existing_metric = db.query(MetricDefinition).filter(
-        MetricDefinition.user_id == user.id,
-        MetricDefinition.name == req.name,
-    ).first()
+    existing_metric = (
+        db.query(MetricDefinition)
+        .filter(
+            MetricDefinition.user_id == user.id,
+            MetricDefinition.name == req.name,
+        )
+        .first()
+    )
 
     if existing_metric:
         existing_metric.expression = req.expression

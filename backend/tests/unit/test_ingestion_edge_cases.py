@@ -50,13 +50,22 @@ def test_sql_keyword_column_names_sanitization():
     validator = CSVValidator()
     csv_with_keywords = b"select,from,where,group,order\n1,2,3,4,5\n"
     res = validator.validate_file(csv_with_keywords, "keywords.csv")
-    assert res.sanitized_headers == ["select_val", "from_val", "where_val", "group_val", "order_val"]
+    assert res.sanitized_headers == [
+        "select_val",
+        "from_val",
+        "where_val",
+        "group_val",
+        "order_val",
+    ]
 
 
 def test_malicious_filenames_sanitization():
     """Verify path traversal and SQL injection in filenames are safely sanitized."""
     pipeline = DataIngestionPipeline()
     assert pipeline.sanitize_table_name("../../etc/passwd.csv") == "passwd"
-    assert pipeline.sanitize_table_name("<script>alert(1)</script>.csv") in ["script", "script_alert_1_script"]
+    assert pipeline.sanitize_table_name("<script>alert(1)</script>.csv") in [
+        "script",
+        "script_alert_1_script",
+    ]
     assert pipeline.sanitize_table_name("t; DROP TABLE users;--.csv") == "t_drop_table_users"
     assert pipeline.sanitize_table_name("123_numeric.csv") == "t_123_numeric"

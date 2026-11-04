@@ -31,9 +31,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     """Generate signed JWT access token."""
     settings = get_settings()
     to_encode = data.copy()
-    expire = datetime.now(UTC) + (
-        expires_delta or timedelta(minutes=settings.jwt_expire_minutes)
-    )
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=settings.jwt_expire_minutes))
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
 
@@ -42,9 +40,7 @@ def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None =
     """Generate signed JWT refresh token."""
     settings = get_settings()
     to_encode = data.copy()
-    expire = datetime.now(UTC) + (
-        expires_delta or timedelta(days=settings.jwt_refresh_expire_days)
-    )
+    expire = datetime.now(UTC) + (expires_delta or timedelta(days=settings.jwt_refresh_expire_days))
     to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
 

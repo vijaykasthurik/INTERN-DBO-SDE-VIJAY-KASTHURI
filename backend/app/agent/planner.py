@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class PlanStep(BaseModel):
     """Atomic step in a DAG execution plan."""
+
     id: str
     tool: str
     description: str
@@ -16,6 +17,7 @@ class PlanStep(BaseModel):
 
 class PlanDAG(BaseModel):
     """Directed Acyclic Graph of execution steps."""
+
     steps: list[PlanStep]
 
 

@@ -6,7 +6,9 @@ from typing import Any
 class HypothesisTool:
     """Generates candidate causes across dimensions and ranks them by variance explained."""
 
-    def test_hypotheses(self, metric_name: str, dimension_candidates: list[str]) -> list[dict[str, Any]]:
+    def test_hypotheses(
+        self, metric_name: str, dimension_candidates: list[str]
+    ) -> list[dict[str, Any]]:
         """Rank root cause hypotheses backed by query evidence."""
         return [
             {

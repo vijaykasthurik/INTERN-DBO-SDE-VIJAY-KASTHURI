@@ -23,12 +23,14 @@ class AnomalyTool:
 
         for idx, (val, z) in enumerate(zip(values, z_scores, strict=False)):
             if z > 3.0:
-                flags.append({
-                    "row_index": idx,
-                    "value": val,
-                    "method": "z-score",
-                    "z_score": float(z),
-                    "reason": f"Value {val} exceeds 3 standard deviations ({mean:.2f} +/- {std:.2f})",
-                })
+                flags.append(
+                    {
+                        "row_index": idx,
+                        "value": val,
+                        "method": "z-score",
+                        "z_score": float(z),
+                        "reason": f"Value {val} exceeds 3 standard deviations ({mean:.2f} +/- {std:.2f})",
+                    }
+                )
 
         return flags

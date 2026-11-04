@@ -18,6 +18,7 @@ RouteLane = Literal[
 
 class RouteDecision(BaseModel):
     """Classification outcome produced by the intent router."""
+
     lane: RouteLane
     confidence: float
     reason: str
@@ -36,7 +37,9 @@ class IntentRouter:
         if "forecast" in q or "predict" in q or "future" in q:
             return RouteDecision(lane="forecast", confidence=0.90, reason="Forecasting query")
         if "why" in q and ("drop" in q or "dip" in q or "fall" in q):
-            return RouteDecision(lane="investigation", confidence=0.90, reason="Hypothesis root-cause")
+            return RouteDecision(
+                lane="investigation", confidence=0.90, reason="Hypothesis root-cause"
+            )
         if "dashboard" in q:
             return RouteDecision(lane="dashboard", confidence=0.95, reason="Dashboard request")
         return RouteDecision(lane="analysis", confidence=0.85, reason="General analytical query")

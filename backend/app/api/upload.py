@@ -18,6 +18,7 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 
 class UploadedDatasetInfo(BaseModel):
     """Metadata of an uploaded dataset."""
+
     id: int
     name: str
     table_name: str
@@ -28,6 +29,7 @@ class UploadedDatasetInfo(BaseModel):
 
 class MultiUploadResponse(BaseModel):
     """Batch upload summary."""
+
     datasets: list[UploadedDatasetInfo]
     total_files: int
     status: str = "success"
@@ -69,10 +71,14 @@ async def upload_datasets(
         quality_res = auditor.evaluate_table_quality(db_path, table_name)
 
         # Check existing dataset with same name for this user (replace if exists)
-        existing = db.query(Dataset).filter(
-            Dataset.user_id == user.id,
-            Dataset.name == filename,
-        ).first()
+        existing = (
+            db.query(Dataset)
+            .filter(
+                Dataset.user_id == user.id,
+                Dataset.name == filename,
+            )
+            .first()
+        )
 
         if existing:
             db.delete(existing)

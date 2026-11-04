@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.datasets import router as datasets_router
 from app.api.health import router as health_router
@@ -79,8 +80,17 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(upload_router, prefix="/api/v1")
     app.include_router(datasets_router, prefix="/api/v1")
+    app.include_router(admin_router, prefix="/api/v1")
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(health_router, prefix="")  # Also expose /health, /ready at root
+
+    @app.get("/providers/status")
+    async def providers_status() -> Response:
+        from fastapi.responses import JSONResponse
+
+        from app.api.admin import _llm_router
+
+        return JSONResponse(content=_llm_router.get_provider_status())
 
     @app.get("/metrics")
     async def metrics() -> Response:
