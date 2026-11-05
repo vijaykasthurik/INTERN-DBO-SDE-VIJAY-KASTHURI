@@ -7,9 +7,37 @@ database URLs, and LLM provider selections with full type safety.
 from functools import lru_cache
 from pathlib import Path
 from typing import Self
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def normalize_database_url(url: str) -> str:
+    """Normalize database connection URL for SQLAlchemy and cloud Postgres providers.
+
+    Converts postgres:// and postgresql:// to postgresql+psycopg:// and enforces
+    sslmode=require on non-local hostnames.
+    """
+    if not url:
+        return url
+    u = url.strip()
+    if u.startswith("postgres://"):
+        u = "postgresql+psycopg://" + u[len("postgres://") :]
+    elif u.startswith("postgresql://") and not u.startswith("postgresql+"):
+        u = "postgresql+psycopg://" + u[len("postgresql://") :]
+
+    if u.startswith("postgresql+psycopg://"):
+        parsed = urlparse(u)
+        host = (parsed.hostname or "").lower()
+        local_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal", "db", "postgres"}
+        if host and host not in local_hosts:
+            qs = parse_qs(parsed.query)
+            if "sslmode" not in qs:
+                qs["sslmode"] = ["require"]
+                new_query = urlencode(qs, doseq=True)
+                u = urlunparse(parsed._replace(query=new_query))
+    return u
 
 
 class Settings(BaseSettings):
@@ -47,6 +75,13 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(default=60, alias="JWT_EXPIRE_MINUTES")
     jwt_refresh_expire_days: int = Field(default=7, alias="JWT_REFRESH_EXPIRE_DAYS")
     shared_pool_hourly_limit: int = Field(default=30, alias="SHARED_POOL_HOURLY_LIMIT")
+
+    # Admin Console Security
+    admin_email: str = Field(default="", alias="ADMIN_EMAIL")
+    admin_password: str = Field(default="", alias="ADMIN_PASSWORD")
+    admin_totp_secret: str = Field(default="", alias="ADMIN_TOTP_SECRET")
+    admin_reset: bool = Field(default=False, alias="ADMIN_RESET")
+    admin_jwt_expire_minutes: int = Field(default=30, alias="ADMIN_JWT_EXPIRE_MINUTES")
 
     # Storage & Database
     database_url: str = Field(default="sqlite:///./data/lumen.db", alias="DATABASE_URL")
@@ -136,7 +171,14 @@ class Settings(BaseSettings):
                 raise ValueError("SECRET_KEY must be a secure secret in production.")
             if not self.key_encryption_secret or len(self.key_encryption_secret) < 32:
                 raise ValueError("KEY_ENCRYPTION_SECRET must be at least 32 characters in production.")
+            if self.admin_password and len(self.admin_password) < 14:
+                raise ValueError("ADMIN_PASSWORD must be at least 14 characters in production.")
         return self
+
+    @property
+    def normalized_database_url(self) -> str:
+        """Return canonical SQLAlchemy database connection URL with driver and security options."""
+        return normalize_database_url(self.database_url)
 
     @property
     def cors_origins_list(self) -> list[str]:

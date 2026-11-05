@@ -1,6 +1,6 @@
 PYTHON := .venv/Scripts/python.exe
 
-.PHONY: setup dev test lint check smoke build up down eval screenshots demo clean
+.PHONY: setup dev test lint check smoke build up down eval screenshots demo clean migrate preflight
 
 setup:
 	$(PYTHON) -m pip install -r backend/requirements.txt
@@ -44,3 +44,9 @@ screenshots:
 
 demo:
 	@echo "Demo recording utility ready"
+
+migrate:
+	powershell -Command "cd backend; ..\.venv\Scripts\alembic.exe upgrade head"
+
+preflight:
+	$(PYTHON) scripts/preflight_render.py

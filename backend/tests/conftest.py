@@ -11,7 +11,17 @@ _test_tmp_dir = tempfile.mkdtemp(prefix="lumen_test_data_")
 os.environ["APP_ENV"] = "test"
 os.environ["LLM_PROVIDER"] = "mock"
 os.environ["DATA_DIR"] = _test_tmp_dir
-os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_test_tmp_dir, 'test_metadata.db')}"
+
+# Support Postgres testing via TEST_DATABASE_URL or inherited postgres DATABASE_URL
+custom_db_url = os.environ.get("TEST_DATABASE_URL")
+existing_db_url = os.environ.get("DATABASE_URL", "")
+if not custom_db_url and (existing_db_url.startswith("postgres://") or existing_db_url.startswith("postgresql://") or existing_db_url.startswith("postgresql+psycopg://")):
+    custom_db_url = existing_db_url
+
+if custom_db_url:
+    os.environ["DATABASE_URL"] = custom_db_url
+else:
+    os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_test_tmp_dir, 'test_metadata.db')}"
 
 # Clear config cache so settings use the isolated test environment
 try:
