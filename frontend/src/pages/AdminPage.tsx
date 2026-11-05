@@ -345,7 +345,7 @@ export const AdminPage: React.FC = () => {
   const handleMaintenance = async (action: "vacuum" | "purge_traces" | "clear_cache") => {
     if (!window.confirm(`Execute maintenance action '${action}'?`)) return;
     try {
-      const res = await adminFetch("/admin/database/maintenance", {
+      await adminFetch("/admin/database/maintenance", {
         method: "POST",
         body: JSON.stringify({ action }),
       });
@@ -676,6 +676,12 @@ export const AdminPage: React.FC = () => {
         {/* ------------------------------------------------------------- */}
         {activeTab === "dashboard" && (
           <div className="space-y-6">
+            {dashboardLoading && (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Loading latest system metrics...</span>
+              </div>
+            )}
             {/* Top Stat Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
@@ -945,6 +951,27 @@ export const AdminPage: React.FC = () => {
                 </table>
               </div>
             </div>
+              <div className="p-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 bg-slate-50/50">
+                <span>
+                  {usersLoading ? "Refreshing user records..." : `Page ${usersPage} of ${Math.max(1, Math.ceil(usersTotal / 15))}`}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={usersPage <= 1 || usersLoading}
+                    onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                    className="px-2.5 py-1 rounded border border-slate-200 hover:bg-white disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={usersPage >= Math.ceil(usersTotal / 15) || usersLoading}
+                    onClick={() => setUsersPage((p) => p + 1)}
+                    className="px-2.5 py-1 rounded border border-slate-200 hover:bg-white disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
 
             {/* User Details Modal */}
             {selectedUserDetails && (
