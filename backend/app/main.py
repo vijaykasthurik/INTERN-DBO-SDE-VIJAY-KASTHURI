@@ -38,6 +38,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     setup_logging(settings.log_level)
     init_db()
+    try:
+        from app.core.admin_seed import seed_admin_user
+        from app.db.session import SessionLocal
+
+        with SessionLocal() as db:
+            seed_admin_user(db)
+    except Exception as exc:
+        logger.warning("Admin seeding failed on startup", error=str(exc))
     logger.info("Starting Lumen backend", env=settings.app_env, provider=settings.llm_provider)
     yield
     logger.info("Shutting down Lumen backend")
@@ -75,6 +83,8 @@ def create_app() -> FastAPI:
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         response.headers["X-Trace-Id"] = trace_id
         response.headers["X-Response-Time-Ms"] = f"{duration_ms:.2f}"
+        if request.url.path.startswith("/admin") or request.url.path.startswith("/api/v1/admin") or "admin2005" in request.url.path:
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
     # Exception Handlers
