@@ -1,5 +1,7 @@
+
 """Administrative and operational management endpoints for Lumen."""
 
+import contextlib
 import os
 import shutil
 import time
@@ -8,9 +10,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import sqlglot
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import desc, func, inspect, text
+from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
 from sqlglot import exp
 
@@ -19,7 +21,6 @@ from app.core.errors import (
     AuthenticationError,
     LumenException,
     NotFoundError,
-    PermissionDeniedError,
     SecurityViolationError,
     ValidationError,
 )
@@ -35,7 +36,7 @@ from app.db.models import (
     SystemSetting,
     User,
 )
-from app.db.session import engine, get_db
+from app.db.session import get_db
 from app.deps import get_current_admin
 from app.llm.router import LLMRouter
 
@@ -77,7 +78,7 @@ def validate_admin_select_query(sql: str) -> None:
     try:
         parsed = sqlglot.parse(sql.strip())
     except Exception as exc:
-        raise SecurityViolationError(f"SQL parsing error: {exc}")
+        raise SecurityViolationError(f"SQL parsing error: {exc}") from exc
 
     if not parsed or len(parsed) != 1:
         raise SecurityViolationError("Only a single SQL statement is allowed.")
@@ -208,8 +209,7 @@ async def admin_login(
         raise AuthenticationError("Invalid administrative credentials")
 
     settings = get_settings()
-    if settings.admin_totp_secret and settings.admin_totp_secret.strip():
-        if not req.totp_code or not verify_totp(req.totp_code, settings.admin_totp_secret):
+    if settings.admin_totp_secret and settings.admin_totp_secret.strip() and (not req.totp_code or not verify_totp(req.totp_code, settings.admin_totp_secret)):
             _record_failed_attempt(client_ip)
             db.add(
                 LoginEvent(
@@ -595,10 +595,8 @@ async def delete_user(
     # Clean up local DuckDB database file
     user_duckdb = os.path.join(settings.data_dir, f"duckdb_tenant_{user_id}.duckdb")
     if os.path.exists(user_duckdb):
-        try:
+        with contextlib.suppress(OSError):
             os.remove(user_duckdb)
-        except OSError:
-            pass
 
     # Clean up upload directory for tenant
     tenant_upload_dir = os.path.join(settings.data_dir, f"tenant_{user_id}")
@@ -812,11 +810,11 @@ async def run_maintenance(
 
     if req.action == "vacuum":
         is_postgres = "postgres" in settings.normalized_database_url
-        with db.get_bind().connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-            if is_postgres:
-                conn.execute(text("VACUUM ANALYZE"))
-            else:
-                conn.execute(text("VACUUM"))
+        conn = db.connection()
+        if is_postgres:
+            conn.execution_options(isolation_level="AUTOCOMMIT").execute(text("VACUUM ANALYZE"))
+        else:
+            conn.execution_options(isolation_level="AUTOCOMMIT").execute(text("VACUUM"))
         details["result"] = "Database vacuum and analyze completed successfully."
 
     elif req.action == "purge_traces":
@@ -1006,17 +1004,17 @@ async def list_audit_logs(
 
     items = [
         {
-            "id": l.id,
-            "admin_user_id": l.admin_user_id,
-            "admin_email": l.admin_email,
-            "action": l.action,
-            "target_type": l.target_type,
-            "target_id": l.target_id,
-            "details": l.details,
-            "ip_address": l.ip_address,
-            "created_at": l.created_at.isoformat() if l.created_at else None,
+            "id": log_entry.id,
+            "admin_user_id": log_entry.admin_user_id,
+            "admin_email": log_entry.admin_email,
+            "action": log_entry.action,
+            "target_type": log_entry.target_type,
+            "target_id": log_entry.target_id,
+            "details": log_entry.details,
+            "ip_address": log_entry.ip_address,
+            "created_at": log_entry.created_at.isoformat() if log_entry.created_at else None,
         }
-        for l in logs
+        for log_entry in logs
     ]
 
     return {"items": items, "total": total, "page": page, "per_page": per_page}

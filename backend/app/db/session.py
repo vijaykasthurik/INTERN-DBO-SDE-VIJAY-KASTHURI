@@ -76,8 +76,9 @@ def check_connection(max_retries: int = 5, initial_backoff: float = 1.0) -> bool
 
 def run_alembic_migrations() -> None:
     """Execute Alembic migrations programmatically to head revision."""
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     alembic_ini_path = Path(__file__).resolve().parents[2] / "alembic.ini"
     if not alembic_ini_path.exists():

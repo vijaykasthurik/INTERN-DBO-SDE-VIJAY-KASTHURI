@@ -1,9 +1,11 @@
 """FastAPI Application Factory for Lumen."""
 
+import os
 import time
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +39,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan context manager for startup and shutdown hooks."""
     settings = get_settings()
     setup_logging(settings.log_level)
+    if settings.app_env.lower() == "production":
+        missing_vars = []
+        if not settings.secret_key or "insecure" in settings.secret_key.lower():
+            missing_vars.append("SECRET_KEY")
+        if not settings.key_encryption_secret or len(settings.key_encryption_secret) < 32:
+            missing_vars.append("KEY_ENCRYPTION_SECRET")
+        if not settings.database_url:
+            missing_vars.append("DATABASE_URL")
+        if not settings.admin_email:
+            missing_vars.append("ADMIN_EMAIL")
+        if not settings.admin_password or len(settings.admin_password) < 14:
+            missing_vars.append("ADMIN_PASSWORD")
+        if settings.llm_provider.lower() == "mock":
+            missing_vars.append("LLM_PROVIDER")
+
+        if missing_vars:
+            logger.error(
+                "Production startup preflight failed: Missing or invalid required environment variables: %s",
+                ", ".join(missing_vars),
+            )
+            import sys
+            sys.exit(1)
+
     init_db()
     try:
         from app.core.admin_seed import seed_admin_user
@@ -115,6 +140,44 @@ def create_app() -> FastAPI:
     @app.get("/metrics")
     async def metrics() -> Response:
         return Response(content=get_latest_metrics(), media_type=CONTENT_TYPE_LATEST)
+
+    # Mount frontend static distribution with SPA fallback
+    frontend_dist_dir = os.environ.get("FRONTEND_DIST_DIR")
+    if not frontend_dist_dir:
+        candidates = [
+            Path("/app/frontend/dist"),
+            Path(__file__).resolve().parents[2] / "frontend" / "dist",
+        ]
+        for c in candidates:
+            if c.exists() and c.is_dir():
+                frontend_dist_dir = str(c)
+                break
+
+    if frontend_dist_dir and os.path.exists(frontend_dist_dir):
+        from fastapi.staticfiles import StaticFiles
+        from starlette.responses import FileResponse, JSONResponse
+
+        assets_path = os.path.join(frontend_dist_dir, "assets")
+        if os.path.exists(assets_path):
+            app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str) -> Response:
+            if (
+                full_path.startswith("api/")
+                or full_path in ("health", "ready", "metrics", "docs", "openapi.json")
+                or full_path.startswith("providers/")
+            ):
+                return JSONResponse(status_code=404, content={"message": "Not Found"})
+
+            file_path = os.path.join(frontend_dist_dir, full_path)
+            if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
+                return FileResponse(file_path)
+
+            index_path = os.path.join(frontend_dist_dir, "index.html")
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+            return JSONResponse(status_code=404, content={"message": "Not Found"})
 
     return app
 

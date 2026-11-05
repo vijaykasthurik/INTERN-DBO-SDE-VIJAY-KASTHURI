@@ -1,6 +1,7 @@
 """Admin account seeding and initialization routine."""
 
 import logging
+
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
