@@ -87,7 +87,7 @@ export const ProfilePage: React.FC = () => {
       : "text-rose-700 bg-rose-50 border-rose-200";
 
   return (
-    <div className="min-h-screen bg-white pt-24 pb-16 px-4 md:px-8">
+    <div className="min-h-screen bg-white pt-20 sm:pt-24 pb-24 md:pb-16 px-4 md:px-8">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* PAGE HEADER */}
         <div>

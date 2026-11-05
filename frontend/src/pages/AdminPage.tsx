@@ -561,7 +561,7 @@ export const AdminPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAFAFB] text-slate-900 font-sans flex flex-col antialiased">
       {/* Top Administrative Header */}
-      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 px-6 py-3 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 px-4 sm:px-6 py-2.5 sm:py-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="font-serif text-lg font-bold tracking-tight text-slate-950">Lumen</span>
@@ -576,10 +576,10 @@ export const AdminPage: React.FC = () => {
         </div>
 
         {/* Tab Switcher */}
-        <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+        <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60 overflow-x-auto max-w-full">
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
               activeTab === "dashboard" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -588,7 +588,7 @@ export const AdminPage: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab("users")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
               activeTab === "users" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -597,7 +597,7 @@ export const AdminPage: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab("database")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
               activeTab === "database" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -606,7 +606,7 @@ export const AdminPage: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab("operations")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
               activeTab === "operations" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -615,7 +615,7 @@ export const AdminPage: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
               activeTab === "audit" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >

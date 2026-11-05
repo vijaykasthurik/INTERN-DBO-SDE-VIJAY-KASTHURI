@@ -138,7 +138,7 @@ export const ReportsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-ink pt-28 pb-16 px-4 sm:px-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-white text-ink pt-24 sm:pt-28 pb-24 sm:pb-16 px-4 sm:px-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -183,7 +183,7 @@ export const ReportsPage: React.FC = () => {
                 )}
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h4 className="text-sm font-semibold text-ink">{report.title}</h4>
                   <Badge
                     variant={report.format === "pdf" ? "accent" : "neutral"}
@@ -200,7 +200,7 @@ export const ReportsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => void preview(report)} className="text-xs text-ink-muted hover:text-ink">
                 <Eye className="w-3.5 h-3.5 mr-1.5" />Preview
               </Button>

@@ -159,7 +159,7 @@ export const DatasetsPage: React.FC = () => {
     issues.filter((i) => i.category === "impossible_value").length;
 
   return (
-    <div className="min-h-screen bg-white text-ink pt-28 pb-16 px-4 sm:px-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-white text-ink pt-24 sm:pt-28 pb-24 sm:pb-16 px-4 sm:px-6 max-w-7xl mx-auto">
       {/* PAGE HEADER */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -308,7 +308,7 @@ export const DatasetsPage: React.FC = () => {
               {/* TABLE HEADER & ACTIONS */}
               <div className="p-6 bg-white rounded-24 border border-hairline shadow-soft-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-xl font-serif font-medium text-ink">
                       {selectedDataset.name}
                     </h2>
@@ -318,7 +318,7 @@ export const DatasetsPage: React.FC = () => {
                     {selectedDataset.row_count.toLocaleString()} rows • {selectedDataset.column_count} columns
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => {setPreviewOpen(true);void loadPreview(selectedDataset.id, 0);}} disabled={previewLoading}>
                     {previewLoading ? "Loading rows..." : "Preview Rows"}
                   </Button>
@@ -347,7 +347,7 @@ export const DatasetsPage: React.FC = () => {
                       strokeWidth={7}
                     />
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-base font-semibold text-ink">Data Health Score</h4>
                         <Badge
                           variant={qualityScore >= 80 ? "success" : qualityScore >= 60 ? "warning" : "error"}
@@ -419,7 +419,7 @@ export const DatasetsPage: React.FC = () => {
               {/* RELATIONSHIP GRAPH CARD */}
               <Card className="p-6 border-hairline">
                 <CardHeader className="p-0 pb-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <LinkIcon className="w-4 h-4 text-accent-indigo" />
                     <CardTitle className="text-base">Foreign Key Relationships</CardTitle>
                   </div>
@@ -461,7 +461,7 @@ export const DatasetsPage: React.FC = () => {
                     {(selectedDataset.columns || []).map((col) => (
                       <div key={col.name} className="py-3 flex items-center justify-between text-xs">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono font-semibold text-ink">{col.name}</span>
                             <Badge variant="neutral" size="sm">{col.data_type}</Badge>
                           </div>

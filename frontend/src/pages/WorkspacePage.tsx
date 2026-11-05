@@ -55,7 +55,7 @@ export const WorkspacePage: React.FC = () => {
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   // Layout state
-  const [railOpen, setRailOpen] = useState<boolean>(true);
+  const [railOpen, setRailOpen] = useState<boolean>(() => typeof window !== "undefined" && window.innerWidth >= 768);
   const [timelineOpen, setTimelineOpen] = useState<boolean>(true);
 
   // Reasoning timeline state
@@ -283,7 +283,7 @@ export const WorkspacePage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col pt-16 bg-white overflow-hidden text-ink">
+    <div className="h-screen flex flex-col pt-12 md:pt-16 bg-white overflow-hidden text-ink">
       {/* 3-PANE WORKSPACE CONTAINER */}
       <div className="flex-1 flex overflow-hidden">
         {/* PANE 1: LEFT DATASET RAIL */}
@@ -296,24 +296,36 @@ export const WorkspacePage: React.FC = () => {
         {/* PANE 2: CENTER CHAT STREAM & COMPOSER */}
         <main className="flex-1 flex flex-col justify-between overflow-hidden bg-white relative">
           {/* TOP BAR WITH TOGGLES */}
-          <div className="px-6 py-2.5 border-b border-hairline flex items-center justify-between text-xs text-ink-muted">
+          <div className="px-3 sm:px-6 py-2 sm:py-2.5 border-b border-hairline flex items-center justify-between text-xs text-ink-muted">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-ink">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRailOpen(!railOpen)}
+                className="h-7 px-2 text-xs md:hidden"
+                aria-label="Toggle tables"
+              >
+                <Table className="w-3.5 h-3.5 mr-1 text-accent-indigo" />
+                <span>Tables</span>
+              </Button>
+              <span className="font-semibold text-ink truncate max-w-[150px] sm:max-w-none">
                 {activeSession?.title || "Executive Analysis Workspace"}
               </span>
               {sessions.length > 1 && (
-                <span className="text-[10px] text-ink-muted">
+                <span className="text-[10px] text-ink-muted hidden sm:inline">
                   • {sessions.length} sessions
                 </span>
               )}
-              <Badge variant="neutral" size="sm">DuckDB Isolated</Badge>
+              <span className="hidden sm:inline-flex">
+                <Badge variant="neutral" size="sm">DuckDB Isolated</Badge>
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setTimelineOpen(!timelineOpen)}
-                className="h-7 px-2 text-xs"
+                className="h-7 px-2 text-xs hidden lg:flex"
               >
                 <PanelRight className="w-3.5 h-3.5 mr-1" />
                 <span>{timelineOpen ? "Hide Reasoning" : "Show Reasoning"}</span>
@@ -579,8 +591,8 @@ export const WorkspacePage: React.FC = () => {
           </div>
 
           {/* COMPOSER DOCK */}
-          <div className="p-4 border-t border-hairline bg-white/95 backdrop-blur-md">
-            <div className="max-w-3xl mx-auto flex items-center gap-3">
+          <div className="p-3 sm:p-4 pb-20 md:pb-4 border-t border-hairline bg-white/95 backdrop-blur-md">
+            <div className="max-w-3xl mx-auto flex items-center gap-2 sm:gap-3">
               <input
                 type="text"
                 placeholder="Ask about sales, anomalies, trends, or request SQL..."
@@ -593,7 +605,7 @@ export const WorkspacePage: React.FC = () => {
                   }
                 }}
                 disabled={isStreaming}
-                className="flex-1 h-11 px-4 text-sm rounded-pill border border-hairline bg-surface text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent-indigo focus:border-transparent transition-all"
+                className="flex-1 h-10 sm:h-11 px-3.5 sm:px-4 text-xs sm:text-sm rounded-pill border border-hairline bg-surface text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent-indigo focus:border-transparent transition-all"
               />
 
               {isStreaming ? (
@@ -601,9 +613,9 @@ export const WorkspacePage: React.FC = () => {
                   onClick={handleStop}
                   variant="outline"
                   size="md"
-                  className="rounded-pill text-rose-600 border-rose-200 hover:bg-rose-50"
+                  className="rounded-pill text-rose-600 border-rose-200 hover:bg-rose-50 h-10 sm:h-11 px-3 sm:px-4 text-xs sm:text-sm"
                 >
-                  <Square className="w-4 h-4 mr-1.5 fill-current" />
+                  <Square className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 fill-current" />
                   Stop
                 </Button>
               ) : (
@@ -611,9 +623,9 @@ export const WorkspacePage: React.FC = () => {
                   onClick={() => handleSendMessage()}
                   disabled={!inputText.trim()}
                   size="md"
-                  className="rounded-pill px-5 shadow-soft-xs"
+                  className="rounded-pill px-4 sm:px-5 shadow-soft-xs h-10 sm:h-11 text-xs sm:text-sm"
                 >
-                  <Send className="w-4 h-4 mr-1.5" />
+                  <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
                   Ask
                 </Button>
               )}

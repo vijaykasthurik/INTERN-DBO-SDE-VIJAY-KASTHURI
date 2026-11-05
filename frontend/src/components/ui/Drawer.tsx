@@ -60,7 +60,7 @@ export const Drawer: React.FC<DrawerProps> = ({
             onClick={onClose}
             aria-hidden="true"
           />
-          <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
+          <div className="fixed inset-y-0 right-0 flex max-w-full pl-4 sm:pl-10">
             <motion.div
               role="dialog"
               aria-modal="true"

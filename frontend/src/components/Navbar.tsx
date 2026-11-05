@@ -29,6 +29,7 @@ export const Navbar: React.FC = () => {
   const [providerMode, setProviderMode] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -65,14 +66,94 @@ export const Navbar: React.FC = () => {
   return (
     <>
       {/* MOBILE TOP HEADER */}
-      <header className="fixed top-0 inset-x-0 z-40 md:hidden bg-white/90 backdrop-blur-md border-b border-hairline py-2 px-4 flex items-center justify-between">
+      <header className="fixed top-0 inset-x-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-b border-hairline py-2 px-3.5 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <Wordmark />
         </Link>
-        {!isAuthenticated && (
+        {isAuthenticated ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openConnectModal()}
+              className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-pill bg-surface border border-hairline"
+              title="AI Model Status"
+            >
+              <span
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  connection?.connected
+                    ? connection.status === "active"
+                      ? "bg-emerald-600 animate-pulse"
+                      : "bg-amber-500"
+                    : "bg-emerald-600"
+                )}
+              />
+              <span className="text-[10px] text-ink font-medium max-w-[80px] truncate">
+                {connection?.connected
+                  ? connection.provider_id?.toUpperCase()
+                  : "Shared AI"}
+              </span>
+            </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="w-7 h-7 rounded-pill bg-ink text-white font-mono font-medium text-[11px] flex items-center justify-center shadow-soft-xs active:scale-95 transition-transform"
+                aria-label="Open profile menu"
+                aria-expanded={mobileMenuOpen}
+              >
+                {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
+              </button>
+
+              <AnimatePresence>
+                {mobileMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 6 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-52 bg-white border border-hairline rounded-20 shadow-soft-lg p-1.5 z-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <div className="px-3 py-2 border-b border-hairline mb-1">
+                      <p className="text-xs font-semibold text-ink truncate">
+                        {user?.full_name || "Lumen User"}
+                      </p>
+                      <p className="text-[11px] text-ink-muted truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-ink rounded-16 hover:bg-surface transition-colors"
+                    >
+                      <UserIcon className="w-3.5 h-3.5 text-ink-muted" />
+                      Model Settings & Keys
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-ink rounded-16 hover:bg-surface transition-colors"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-ink-muted" />
+                      System Settings
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-600 rounded-16 hover:bg-rose-50 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                      Sign Out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        ) : (
           <Link
             to="/auth"
-            className="px-3.5 py-1 text-xs font-medium text-white bg-ink rounded-pill shadow-soft-xs hover:bg-ink/90 active:scale-95"
+            className="px-3 py-1 text-xs font-medium text-white bg-ink rounded-pill shadow-soft-xs hover:bg-ink/90 active:scale-95"
           >
             Sign In
           </Link>

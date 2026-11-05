@@ -164,7 +164,7 @@ export const DashboardsPage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-white text-ink pt-28 pb-16 px-4 sm:px-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-white text-ink pt-24 sm:pt-28 pb-24 sm:pb-16 px-4 sm:px-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -273,7 +273,7 @@ export const DashboardsPage: React.FC = () => {
               >
                 <Card className="h-full flex flex-col justify-between border-hairline hover:shadow-soft-md transition-shadow group relative">
                   {/* Reorder and Action Bar */}
-                  <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/90 backdrop-blur-sm rounded-12 p-1 border border-hairline shadow-soft-xs">
+                  <div className="absolute top-3 right-3 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 bg-white/90 backdrop-blur-sm rounded-12 p-1 border border-hairline shadow-soft-xs">
                     <button
                       onClick={() => moveWidget(idx, "up")}
                       disabled={idx === 0 || savingOrder}

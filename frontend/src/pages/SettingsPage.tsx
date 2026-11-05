@@ -111,7 +111,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-ink pt-28 pb-16 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-white text-ink pt-24 sm:pt-28 pb-24 sm:pb-16 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
