@@ -9,8 +9,9 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.admin import _admin_failed_attempts
 from app.config import get_settings
-from app.core.security import create_access_token, hash_password
-from app.db.models import AdminAuditLog, Base, User
+from app.core.admin_seed import seed_admin_user
+from app.core.security import create_access_token, hash_password, verify_password
+from app.db.models import Base, User
 from app.db.session import get_db
 from app.main import create_app
 
@@ -255,10 +256,10 @@ def test_user_disable_and_token_invalidation(admin_client: TestClient, test_admi
     assert probe.status_code == 401
 
 
-def test_database_table_browser_and_secret_reveal(
+def test_database_table_browser_and_sql_console_secret_redaction(
     admin_client: TestClient, test_admin_user: User, test_db_session: Session
 ):
-    """Verify secrets are masked as '***' and reveal endpoint logs an audit record."""
+    """Verify sensitive columns and values are completely absent from all admin responses, SQL, and CSV exports."""
     admin_login = admin_client.post(
         "/api/v1/admin/login",
         json={"email": test_admin_user.email, "password": "SuperSecretPass2026!#"},
@@ -266,30 +267,86 @@ def test_database_table_browser_and_secret_reveal(
     admin_token = admin_login.json()["access_token"]
     headers = {"Authorization": f"Bearer {admin_token}"}
 
-    # Browse users table
+    # 1. Browse users table: hashed_password and ciphertext must be ABSENT
     browse_resp = admin_client.get("/api/v1/admin/database/browse/users", headers=headers)
     assert browse_resp.status_code == 200
-    rows = browse_resp.json()["rows"]
-    assert len(rows) > 0
-    # hashed_password must be masked
-    for r in rows:
-        assert r["hashed_password"] == "***"
+    browse_data = browse_resp.json()
+    assert "hashed_password" not in browse_data["columns"]
+    for row in browse_data["rows"]:
+        assert "hashed_password" not in row
+        assert "ciphertext" not in row
+        # Ensure no argon2 hash appears anywhere in stringified row values
+        for val in row.values():
+            assert not str(val).startswith("$argon2")
 
-    # Reveal secret
+    # 2. Reveal endpoint must be completely removed (404/405)
     reveal_resp = admin_client.post(
         f"/api/v1/admin/database/reveal-secret?table_name=users&row_id={test_admin_user.id}&column_name=hashed_password",
         headers=headers,
     )
-    assert reveal_resp.status_code == 200
-    unmasked = reveal_resp.json()["value"]
-    assert unmasked.startswith("$argon2")
+    assert reveal_resp.status_code in (404, 405)
 
-    # Verify audit log entry
-    audit = (
-        test_db_session.query(AdminAuditLog)
-        .filter(AdminAuditLog.action == "secret.revealed")
-        .first()
+    # 3. SQL query console: SELECT hashed_password must omit sensitive columns from columns and rows
+    query_resp = admin_client.post(
+        "/api/v1/admin/database/query",
+        json={"query": "SELECT id, email, hashed_password FROM users LIMIT 5;"},
+        headers=headers,
     )
-    assert audit is not None
-    assert audit.target_type == "users"
-    assert audit.target_id == str(test_admin_user.id)
+    assert query_resp.status_code == 200
+    query_data = query_resp.json()
+    assert "hashed_password" not in query_data["columns"]
+    for row in query_data["rows"]:
+        assert "hashed_password" not in row
+        for val in row.values():
+            assert not str(val).startswith("$argon2")
+
+    # 4. CSV export simulation: CSV generated from query result must never contain sensitive keys or values
+    csv_headers = ",".join(query_data["columns"])
+    csv_rows = [csv_headers]
+    for row in query_data["rows"]:
+        csv_rows.append(",".join(str(row.get(col, "")) for col in query_data["columns"]))
+    csv_output = "\n".join(csv_rows)
+    assert "hashed_password" not in csv_output
+    assert "$argon2" not in csv_output
+
+    # 5. Runtime environment configuration view: must show ONLY names and is_set boolean, never values
+    settings_resp = admin_client.get("/api/v1/admin/operations/settings", headers=headers)
+    assert settings_resp.status_code == 200
+    settings_data = settings_resp.json()
+    assert "env_status" in settings_data
+    for item in settings_data["env_status"]:
+        assert set(item.keys()) == {"name", "is_set"}
+        assert isinstance(item["name"], str)
+        assert isinstance(item["is_set"], bool)
+
+
+def test_admin_seed_does_not_reset_password_unless_admin_reset_flag(
+    test_db_session: Session, test_admin_user: User, monkeypatch
+):
+    """Admin password must not be overwritten on boot unless ADMIN_RESET is explicitly true."""
+    settings = get_settings()
+    original_hash = test_admin_user.hashed_password
+    assert verify_password("SuperSecretPass2026!#", original_hash)
+
+    # Re-seed with a new password and ADMIN_RESET=False
+    monkeypatch.setattr(settings, "admin_email", test_admin_user.email)
+    monkeypatch.setattr(settings, "admin_password", "AttemptedNewPassword2026!#")
+    monkeypatch.setattr(settings, "admin_reset", False)
+
+    seed_admin_user(test_db_session)
+    test_db_session.refresh(test_admin_user)
+
+    # Password hash must remain UNTOUCHED
+    assert test_admin_user.hashed_password == original_hash
+    assert verify_password("SuperSecretPass2026!#", test_admin_user.hashed_password)
+    assert not verify_password("AttemptedNewPassword2026!#", test_admin_user.hashed_password)
+
+    # Now re-seed with ADMIN_RESET=True
+    monkeypatch.setattr(settings, "admin_reset", True)
+    seed_admin_user(test_db_session)
+    test_db_session.refresh(test_admin_user)
+
+    # Password hash must now be updated to the new password
+    assert test_admin_user.hashed_password != original_hash
+    assert verify_password("AttemptedNewPassword2026!#", test_admin_user.hashed_password)
+

@@ -49,6 +49,28 @@ LOCKOUT_WINDOW_SECONDS = 900  # 15 minutes
 MAX_FAILED_ATTEMPTS = 5
 
 
+# Sensitive column identifier patterns that must never be exposed
+SENSITIVE_COLUMN_NAMES = {
+    "hashed_password",
+    "password_hash",
+    "password",
+    "ciphertext",
+    "admin_totp_secret",
+    "secret_key",
+    "key_encryption_secret",
+    "totp_secret",
+    "jwt_secret",
+}
+
+
+def is_sensitive_column(col_name: str) -> bool:
+    """Determine if a column name represents credentials or cryptographic secrets."""
+    name = col_name.strip().lower()
+    if name in SENSITIVE_COLUMN_NAMES:
+        return True
+    return any(p in name for p in ("password", "ciphertext", "secret_key", "totp_secret", "encryption_secret"))
+
+
 def _check_ip_lockout(ip: str) -> None:
     now = time.time()
     attempts = [t for t in _admin_failed_attempts[ip] if now - t < LOCKOUT_WINDOW_SECONDS]
@@ -145,11 +167,10 @@ class SettingUpdateRequest(BaseModel):
 
 @router.get("/system-info")
 async def get_system_info() -> dict[str, Any]:
-    """Retrieve runtime environment diagnostics."""
+    """Retrieve runtime operational diagnostics."""
     settings = get_settings()
     return {
-        "app_env": settings.app_env,
-        "llm_provider": settings.llm_provider,
+        "status": "online",
         "cache_ttl": settings.cache_ttl_seconds,
         "max_upload_mb": settings.max_upload_mb,
     }
@@ -644,6 +665,7 @@ async def list_database_tables(
         columns = [
             {"name": col["name"], "type": str(col["type"])}
             for col in inspector.get_columns(name)
+            if not is_sensitive_column(col["name"])
         ]
         tables.append({"name": name, "row_count": count, "columns": columns})
 
@@ -660,12 +682,12 @@ async def browse_table_data(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Retrieve paginated rows for a metadata table with sensitive columns masked."""
+    """Retrieve paginated rows for a metadata table with sensitive columns completely omitted."""
     inspector = inspect(db.get_bind())
     if table_name not in inspector.get_table_names():
         raise NotFoundError(f"Table '{table_name}' does not exist.")
 
-    columns = [col["name"] for col in inspector.get_columns(table_name)]
+    columns = [col["name"] for col in inspector.get_columns(table_name) if not is_sensitive_column(col["name"])]
 
     # Validate sort_by
     if sort_by and sort_by not in columns:
@@ -678,18 +700,13 @@ async def browse_table_data(
 
     total = db.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar() or 0
     offset = (page - 1) * per_page
-    query = text(f'SELECT * FROM "{table_name}" {order_clause} LIMIT :limit OFFSET :offset')
+    cols_sql = ", ".join(f'"{c}"' for c in columns) if columns else "1"
+    query = text(f'SELECT {cols_sql} FROM "{table_name}" {order_clause} LIMIT :limit OFFSET :offset')
     rows = db.execute(query, {"limit": per_page, "offset": offset}).mappings().all()
 
-    # Mask sensitive credentials
-    sensitive_cols = {"hashed_password", "ciphertext"}
     result_rows = []
     for row in rows:
-        row_dict = dict(row)
-        for c in sensitive_cols:
-            if c in row_dict and row_dict[c] is not None:
-                row_dict[c] = "***"
-        result_rows.append(row_dict)
+        result_rows.append({c: row.get(c) for c in columns})
 
     return {
         "table": table_name,
@@ -699,46 +716,6 @@ async def browse_table_data(
         "page": page,
         "per_page": per_page,
     }
-
-
-@router.post("/database/reveal-secret")
-async def reveal_secret(
-    table_name: str = Query(...),
-    row_id: int = Query(...),
-    column_name: str = Query(...),
-    request: Request = None,  # type: ignore
-    admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """Audit and reveal a sensitive masked credential for administrative inspection."""
-    if column_name not in ("hashed_password", "ciphertext"):
-        raise ValidationError("Column is not a masked secret.")
-
-    inspector = inspect(db.get_bind())
-    if table_name not in inspector.get_table_names():
-        raise NotFoundError("Table does not exist.")
-
-    query = text(f'SELECT "{column_name}" FROM "{table_name}" WHERE id = :id')
-    val = db.execute(query, {"id": row_id}).scalar()
-    if val is None:
-        raise NotFoundError("Record or column value not found.")
-
-    client_ip = request.client.host if request and request.client else "unknown"
-    db.add(
-        AdminAuditLog(
-            admin_user_id=admin.id,
-            admin_email=admin.email,
-            action="secret.revealed",
-            target_type=table_name,
-            target_id=str(row_id),
-            details={"column": column_name},
-            ip_address=client_ip,
-        )
-    )
-    db.commit()
-    return {"value": str(val)}
-
-
 @router.post("/database/query")
 async def run_sql_query(
     req: SqlQueryRequest,
@@ -762,14 +739,13 @@ async def run_sql_query(
 
     duration_ms = (time.perf_counter() - start_time) * 1000.0
 
-    # Mask sensitive credentials in query result
-    sensitive_cols = {"hashed_password", "ciphertext"}
+    # Omit sensitive credential columns completely
+    safe_indices = [i for i, c in enumerate(columns) if not is_sensitive_column(c)]
+    safe_columns = [columns[i] for i in safe_indices]
+
     result_rows = []
     for r in rows_raw:
-        row_dict = dict(zip(columns, r, strict=False))
-        for col in sensitive_cols:
-            if col in row_dict and row_dict[col] is not None:
-                row_dict[col] = "***"
+        row_dict = {safe_columns[j]: r[i] for j, i in enumerate(safe_indices)}
         result_rows.append(row_dict)
 
     client_ip = request.client.host if request.client else "unknown"
@@ -789,7 +765,7 @@ async def run_sql_query(
     db.commit()
 
     return {
-        "columns": columns,
+        "columns": safe_columns,
         "rows": result_rows,
         "row_count": len(result_rows),
         "duration_ms": round(duration_ms, 2),
@@ -851,34 +827,54 @@ async def get_system_settings(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Retrieve operational feature flags, limits, and runtime configuration."""
+    """Retrieve operational flags and runtime environment variable status (NAMES and set/unset status only)."""
     settings = get_settings()
 
-    # Default settings dictionary
     defaults = {
         "allow_registration": {"enabled": True, "description": "Allow public user registration"},
         "allow_shared_fallback": {"enabled": True, "description": "Enable smart fallback to shared server models"},
         "maintenance_mode": {"enabled": False, "description": "Show maintenance advisory banner to regular users"},
-        "max_upload_mb": {"value": settings.max_upload_mb, "description": "Global file upload size limit in MB"},
     }
 
-    # Fetch stored dynamic settings
     db_settings = {s.key: s.value for s in db.query(SystemSetting).all()}
     merged = {**defaults, **db_settings}
 
-    # Config overview (secrets redacted)
-    config_overview = {
-        "app_env": settings.app_env,
-        "app_name": settings.app_name,
-        "log_level": settings.log_level,
-        "database_engine": "postgresql" if "postgres" in settings.normalized_database_url else "sqlite",
-        "llm_provider": settings.llm_provider,
-        "llm_fallback_order": settings.fallback_providers_list,
-        "groq_pool_size": len(settings.groq_keys_pool),
-        "shared_pool_hourly_limit": settings.shared_pool_hourly_limit,
-    }
+    env_vars_to_check = [
+        "ADMIN_EMAIL",
+        "ADMIN_PASSWORD",
+        "ADMIN_RESET",
+        "ADMIN_TOTP_SECRET",
+        "APP_ENV",
+        "APP_NAME",
+        "CACHE_TTL_SECONDS",
+        "DATABASE_URL",
+        "DATA_DIR",
+        "DEEPSEEK_API_KEY",
+        "GEMINI_API_KEY",
+        "GROQ_API_KEYS",
+        "HF_API_KEY",
+        "KEY_ENCRYPTION_SECRET",
+        "LLM_PROVIDER",
+        "LOG_LEVEL",
+        "MAX_UPLOAD_MB",
+        "OPENROUTER_API_KEY",
+        "PORT",
+        "SECRET_KEY",
+        "ZAI_API_KEY",
+    ]
 
-    return {"settings": merged, "config": config_overview}
+    env_status = []
+    for var_name in sorted(env_vars_to_check):
+        val = os.environ.get(var_name)
+        if not val:
+            attr = getattr(settings, var_name.lower(), None)
+            val = str(attr) if attr is not None and attr != "" else None
+        env_status.append({
+            "name": var_name,
+            "is_set": bool(val and str(val).strip()),
+        })
+
+    return {"settings": merged, "env_status": env_status}
 
 
 @router.patch("/operations/settings")

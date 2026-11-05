@@ -255,7 +255,6 @@ export const AdminPage: React.FC = () => {
   const [sqlQuery, setSqlQuery] = useState("SELECT id, email, role, is_active FROM users LIMIT 10;");
   const [queryResult, setQueryResult] = useState<any | null>(null);
   const [queryRunning, setQueryRunning] = useState(false);
-  const [revealedSecrets, setRevealedSecrets] = useState<Record<string, string>>({});
 
   const fetchTables = async () => {
     if (!token) return;
@@ -292,17 +291,6 @@ export const AdminPage: React.FC = () => {
     }
   }, [token, activeTab, dbSubTab, selectedTable, tablePage]);
 
-  const handleRevealSecret = async (tableName: string, rowId: number, colName: string) => {
-    try {
-      const data = await adminFetch(
-        `/admin/database/reveal-secret?table_name=${tableName}&row_id=${rowId}&column_name=${colName}`,
-        { method: "POST" }
-      );
-      setRevealedSecrets((prev) => ({ ...prev, [`${tableName}_${rowId}_${colName}`]: data.value }));
-    } catch (err: unknown) {
-      showBanner("error", err instanceof Error ? err.message : "Secret revelation failed");
-    }
-  };
 
   const handleRunSql = async () => {
     if (!sqlQuery.trim()) return;
@@ -359,7 +347,7 @@ export const AdminPage: React.FC = () => {
   // TAB 4: Operations & Settings
   // -------------------------------------------------------------
   const [sysSettings, setSysSettings] = useState<any>(null);
-  const [configOverview, setConfigOverview] = useState<any>(null);
+  const [envStatus, setEnvStatus] = useState<{ name: string; is_set: boolean }[]>([]);
   const [contactMessages, setContactMessages] = useState<any[]>([]);
 
   const fetchOperations = async () => {
@@ -367,7 +355,7 @@ export const AdminPage: React.FC = () => {
     try {
       const data = await adminFetch("/admin/operations/settings");
       setSysSettings(data.settings);
-      setConfigOverview(data.config);
+      setEnvStatus(data.env_status || []);
 
       const msgData = await adminFetch("/admin/operations/contact-messages?page=1&per_page=20");
       setContactMessages(msgData.items || []);
@@ -1102,37 +1090,11 @@ export const AdminPage: React.FC = () => {
                         <tbody className="divide-y divide-slate-100">
                           {tableData.rows?.map((row: any, idx: number) => (
                             <tr key={idx} className="hover:bg-slate-50">
-                              {tableData.columns?.map((c: string) => {
-                                const secretKey = `${selectedTable}_${row.id}_${c}`;
-                                const isMasked = row[c] === "***";
-                                const revealedVal = revealedSecrets[secretKey];
-
-                                return (
-                                  <td key={c} className="py-2 px-3 text-slate-700 font-mono text-[11px] whitespace-nowrap">
-                                    {isMasked ? (
-                                      revealedVal ? (
-                                        <span className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">
-                                          {revealedVal}
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1">
-                                          <span className="text-slate-400">••••••••</span>
-                                          <button
-                                            onClick={() => handleRevealSecret(selectedTable, row.id, c)}
-                                            className="text-[10px] text-indigo-600 hover:underline"
-                                          >
-                                            Reveal
-                                          </button>
-                                        </span>
-                                      )
-                                    ) : typeof row[c] === "object" ? (
-                                      JSON.stringify(row[c])
-                                    ) : (
-                                      String(row[c] ?? "")
-                                    )}
-                                  </td>
-                                );
-                              })}
+                              {tableData.columns?.map((c: string) => (
+                                <td key={c} className="py-2 px-3 text-slate-700 font-mono text-[11px] whitespace-nowrap">
+                                  {typeof row[c] === "object" ? JSON.stringify(row[c]) : String(row[c] ?? "")}
+                                </td>
+                              ))}
                             </tr>
                           ))}
                         </tbody>
@@ -1357,29 +1319,29 @@ export const AdminPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Active Configuration (Redacted) */}
+            {/* Active Configuration (Names and Set/Unset Status Only - No Secret Exposure) */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
               <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                 <HardDrive className="w-4 h-4 text-slate-600" />
-                <span>Runtime Environment Overview (Secrets Masked)</span>
+                <span>Runtime Environment Configuration (Names & Status Only)</span>
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70">
-                  <div className="text-slate-400 text-[10px] uppercase font-medium">Environment</div>
-                  <div className="font-semibold text-slate-800 mt-0.5">{configOverview?.app_env}</div>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70">
-                  <div className="text-slate-400 text-[10px] uppercase font-medium">Database Engine</div>
-                  <div className="font-semibold text-slate-800 mt-0.5 uppercase">{configOverview?.database_engine}</div>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70">
-                  <div className="text-slate-400 text-[10px] uppercase font-medium">Active LLM Provider</div>
-                  <div className="font-semibold text-slate-800 mt-0.5 uppercase">{configOverview?.llm_provider}</div>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70">
-                  <div className="text-slate-400 text-[10px] uppercase font-medium">Groq Key Pool</div>
-                  <div className="font-semibold text-slate-800 mt-0.5">{configOverview?.groq_pool_size} active keys</div>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 text-xs">
+                {envStatus.map((item) => (
+                  <div key={item.name} className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/70 flex items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] text-slate-700 truncate" title={item.name}>
+                      {item.name}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase ${
+                        item.is_set
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-slate-100 text-slate-500 border border-slate-200"
+                      }`}
+                    >
+                      {item.is_set ? "SET" : "NOT SET"}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
