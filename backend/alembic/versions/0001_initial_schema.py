@@ -4,17 +4,17 @@ Revision ID: 0001_initial_schema
 Revises:
 Create Date: 2026-11-05
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '0001_initial_schema'
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -24,8 +24,8 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('email', sa.String(length=255), nullable=False),
         sa.Column('hashed_password', sa.String(length=255), nullable=False),
-        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')),
-        sa.Column('allow_shared_fallback', sa.Boolean(), nullable=False, server_default=sa.text('1')),
+        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
+        sa.Column('allow_shared_fallback', sa.Boolean(), nullable=False, server_default=sa.text('true')),
         sa.Column('role', sa.String(length=16), nullable=False, server_default='user'),
         sa.Column('token_version', sa.Integer(), nullable=False, server_default='1'),
         sa.Column('last_login_at', sa.DateTime(timezone=True), nullable=True),
@@ -137,7 +137,7 @@ def upgrade() -> None:
         sa.Column('duration_ms', sa.Float(), nullable=False),
         sa.Column('total_tokens', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('cost_usd', sa.Float(), nullable=False, server_default='0.0'),
-        sa.Column('cache_hit', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+        sa.Column('cache_hit', sa.Boolean(), nullable=False, server_default=sa.text('false')),
         sa.Column('verifier_confidence', sa.String(length=32), nullable=False, server_default='High'),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint('id'),
@@ -241,7 +241,7 @@ def upgrade() -> None:
         sa.Column('user_id', sa.Integer(), nullable=True),
         sa.Column('email', sa.String(length=255), nullable=False),
         sa.Column('role', sa.String(length=16), nullable=False, server_default='user'),
-        sa.Column('success', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+        sa.Column('success', sa.Boolean(), nullable=False, server_default=sa.text('false')),
         sa.Column('ip_address', sa.String(length=64), nullable=True),
         sa.Column('user_agent', sa.String(length=255), nullable=True),
         sa.Column('failure_reason', sa.String(length=128), nullable=True),
