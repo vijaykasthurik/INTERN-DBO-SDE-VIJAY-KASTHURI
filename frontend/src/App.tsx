@@ -37,6 +37,9 @@ const SettingsPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage }))
 );
+const AdminPage = lazy(() =>
+  import("./pages/AdminPage").then((m) => ({ default: m.AdminPage }))
+);
 const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage }))
 );
@@ -76,6 +79,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="/admin2005" element={<AdminPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
@@ -85,6 +89,7 @@ const AnimatedRoutes: React.FC = () => {
 const Navigation = () => {
   const location = useLocation();
   const authenticated = useAuthStore((s) => s.isAuthenticated);
+  if (location.pathname.startsWith("/admin2005")) return null;
   const publicPage = ["/", "/auth", "/how-it-works", "/about", "/contact"].includes(location.pathname);
   return publicPage || !authenticated ? <PublicNavbar /> : <Navbar />;
 };
